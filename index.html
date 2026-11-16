@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EXIT CODE | 접속 테스트</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #101b35; color: #fff; font-family: system-ui, sans-serif; padding: 24px; }
+    main { width: min(100%, 460px); padding: 40px 26px; border: 1px solid #4d6bb6; border-radius: 22px; text-align: center; background: #1b2b50; }
+    h1 { font-size: clamp(32px, 7vw, 48px); letter-spacing: 2px; margin: 0 0 10px; color: #7be8ef; }
+    p { line-height: 1.65; }
+    .success { color: #9af3b5; font-weight: 700; }
+    button { border: 0; border-radius: 12px; background: #66dfe9; color: #10213b; font-weight: 700; padding: 14px 24px; cursor: pointer; font-size: 16px; }
+    #result { min-height: 28px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>EXIT CODE</h1>
+    <p>마.비 프로젝트 1차시 웹앱</p>
+    <p class="success">GitHub Pages 접속 테스트</p>
+    <button id="test" type="button">작동 확인</button>
+    <p id="result" aria-live="polite"></p>
+  </main>
+  <script>
+    document.getElementById('test').addEventListener('click', function () {
+      document.getElementById('result').textContent = '성공! 웹페이지와 JavaScript가 정상 작동합니다.';
+    });
+  </script>
+</body>
+</html>
