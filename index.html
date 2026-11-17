@@ -102,6 +102,42 @@ document.getElementById('submitMissionBtn')
   });
 </script>
 
+  
+<section style="margin:20px 0;padding:15px;border:1px solid #ccc;">
+  <h3>POST 통신 테스트</h3>
+  <button id="pingBtn" type="button">통신 확인</button>
+  <p id="pingResult" aria-live="polite"></p>
+</section>
+
+<script>
+document.getElementById('pingBtn').addEventListener('click', async () => {
+  const result = document.getElementById('pingResult');
+  const button = document.getElementById('pingBtn');
+
+  button.disabled = true;
+  result.textContent = '통신 확인 중...';
+
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify({ action: 'ping' })
+    });
+
+    const data = await response.json();
+    result.textContent = data.message || '응답 확인 완료';
+
+  } catch (error) {
+    console.error(error);
+    result.textContent = '응답을 읽지 못했습니다.';
+  } finally {
+    button.disabled = false;
+  }
+});
+</script>
+
 <body>
   <h1>EXIT CODE</h1>
   <h2>학생 입장 테스트</h2>
