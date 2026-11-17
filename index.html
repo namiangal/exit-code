@@ -1,191 +1,514 @@
-<!DOCTYPE html>
+
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1">
-  <title>EXIT CODE 학생 입장 테스트</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      max-width: 420px;
-      margin: 50px auto;
-      padding: 20px;
-    }
-    input, button {
-      box-sizing: border-box;
-      width: 100%;
-      padding: 14px;
-      margin: 8px 0;
-      font-size: 17px;
-    }
-    button {
-      background: #245cdb;
-      color: white;
-      border: 0;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EXIT CODE | 입장 테스트</title>
+
+<style>
+:root {
+  font-family: system-ui, 'Malgun Gothic', sans-serif;
+  color: #172033;
+  background: #f3f6fb;
+}
+* { box-sizing: border-box; }
+body {
+  max-width: 600px;
+  margin: 30px auto;
+  padding: 16px;
+}
+main {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 5px 20px #13264b12;
+}
+h1 { margin: 0 0 6px; }
+h2 { font-size: 21px; }
+nav {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0;
+}
+button, input, select { font: inherit; }
+nav button { flex: 1; }
+button {
+  padding: 12px 16px;
+  background: #245cdb;
+  color: white;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: .5;
+  cursor: wait;
+}
+button.secondary {
+  background: #e8eef9;
+  color: #20314f;
+}
+button.active { background: #153c99; }
+label {
+  display: block;
+  margin: 14px 0 5px;
+  font-weight: 600;
+}
+input, select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #aeb9cd;
+  border-radius: 8px;
+}
+form > button {
+  width: 100%;
+  margin-top: 20px;
+}
+.hidden { display: none !important; }
+.notice {
+  margin-top: 12px;
+  white-space: pre-wrap;
+  color: #344361;
+}
+.error { color: #b42318; }
+.ok { color: #146c43; }
+.item {
+  border: 1px solid #d8e0ed;
+  border-radius: 10px;
+  padding: 14px;
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+.item a { color: #245cdb; }
+small { color: #65718a; }
+.topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.topline button { width: auto; }
+footer {
+  margin-top: 22px;
+  color: #65718a;
+  font-size: 13px;
+}
+</style>
 </head>
-  
-<section id="missionSubmit">
-  <h3>미션 제출 테스트</h3>
 
-  <label for="missionNum">미션 선택</label>
-  <select id="missionNum">
-    <option value="3">미션 3</option>
-    <option value="4">미션 4</option>
-    <option value="5">미션 5</option>
-  </select>
+<body>
+<main>
+  <h1>EXIT CODE</h1>
+  <small>1차시 기능 테스트 · 가상 학생 데이터 전용</small>
 
-  <p>
-    <label for="makecodeUrl">MakeCode 공유 URL</label>
-    <input
-      id="makecodeUrl"
-      type="url"
-      placeholder="https://makecode.microbit.org/..."
-      style="width: 95%; max-width: 500px;"
-    >
-  </p>
+  <!-- 학생 / 도우미 선택 -->
+  <nav aria-label="입장 유형">
+    <button id="studentTab" class="active" type="button">
+      학생 입장
+    </button>
+    <button id="helperTab" class="secondary" type="button">
+      도우미 입장
+    </button>
+  </nav>
 
-  <button id="submitMissionBtn" type="button">
-    미션 제출
-  </button>
+  <!-- 학생 화면 -->
+  <section id="studentArea">
+    <form id="studentForm">
+      <h2>학생 입장 확인</h2>
 
-  <p id="submitResult" aria-live="polite"></p>
-</section>
+      <label for="classNum">반</label>
+      <select id="classNum" required>
+        <option value="1">1반</option>
+        <option value="2">2반</option>
+        <option value="3">3반</option>
+        <option value="4">4반</option>
+        <option value="5">5반</option>
+      </select>
+
+      <label for="studentNum">번호</label>
+      <input id="studentNum" type="number"
+             min="1" max="99" value="99" required>
+
+      <label for="studentName">이름</label>
+      <input id="studentName" maxlength="30"
+             value="테스트학생" required>
+
+      <button type="submit">입장 확인</button>
+      <p id="studentResult" class="notice" role="status"></p>
+    </form>
+
+    <!-- 입장 확인 후 표시 -->
+    <section id="missionArea" class="hidden">
+      <h2>미션 제출 테스트</h2>
+      <small>
+        현재 서버는 1반 99번 테스트학생으로만 저장합니다.
+      </small>
+
+      <form id="missionForm">
+        <label for="missionNum">미션 선택</label>
+        <select id="missionNum">
+          <option value="3">미션 3</option>
+          <option value="4">미션 4</option>
+          <option value="5">미션 5</option>
+        </select>
+
+        <label for="makecodeUrl">MakeCode 공유 URL</label>
+        <input id="makecodeUrl" type="url"
+               placeholder="https://makecode.microbit.org/#pub:..."
+               required>
+
+        <button type="submit">미션 제출</button>
+        <p id="submitResult" class="notice" role="status"></p>
+      </form>
+    </section>
+  </section>
+
+  <!-- 도우미 화면 -->
+  <section id="helperArea" class="hidden">
+    <form id="helperForm">
+      <h2>도우미 로그인</h2>
+
+      <label for="accountId">계정 ID</label>
+      <input id="accountId" autocomplete="username"
+             placeholder="helper01" required>
+
+      <label for="helperPassword">비밀번호</label>
+      <input id="helperPassword" type="password"
+             autocomplete="current-password" required>
+
+      <button type="submit">로그인</button>
+      <p id="helperResult" class="notice" role="status"></p>
+    </form>
+
+    <!-- 로그인 성공 후 표시 -->
+    <section id="helperDashboard" class="hidden">
+      <div class="topline">
+        <h2 id="helperTitle">미션 검수 목록</h2>
+        <button id="logoutBtn" type="button" class="secondary">
+          로그아웃
+        </button>
+      </div>
+
+      <small>
+        현재는 조회 전용입니다.
+        승인·재도전·검수 취소는 다음 단계에서 연결합니다.
+      </small>
+
+      <p>
+        <button id="refreshBtn" type="button" class="secondary">
+          목록 새로고침
+        </button>
+      </p>
+
+      <p id="listResult" class="notice" role="status"></p>
+      <div id="missionList"></div>
+    </section>
+  </section>
+
+  <footer>
+    실제 학생 정보와 운영용 비밀번호는 아직 입력하지 마세요.
+  </footer>
+</main>
 
 <script>
-document.getElementById('submitMissionBtn')
-  .addEventListener('click', async function () {
+'use strict';
 
-    const button = this;
-    const result = document.getElementById('submitResult');
+// 기존 Apps Script 주소 유지
+const API_URL =
+  'https://script.google.com/macros/s/AKfycbzAtp31FIlNoPtN6Hd1ZsxPYZ3xyd-VMWTZXmTY8nmS_r-xQsw6lQedVDYXwJEF_1ms/exec';
 
-    const data = {
+const $ = id => document.getElementById(id);
+
+// 세션 토큰은 브라우저 메모리에만 저장
+let helperToken = '';
+let helperClass = '';
+
+const show = (id, on) =>
+  $(id).classList.toggle('hidden', !on);
+
+function status(id, message, ok) {
+  const el = $(id);
+  el.textContent = message;
+  el.className = 'notice ' +
+    (ok === true ? 'ok' : ok === false ? 'error' : '');
+}
+
+// 학생 / 도우미 화면 전환
+function switchTab(helper) {
+  show('studentArea', !helper);
+  show('helperArea', helper);
+
+  $('studentTab').className =
+    helper ? 'secondary' : 'active';
+
+  $('helperTab').className =
+    helper ? 'active' : 'secondary';
+}
+
+$('studentTab').addEventListener('click', () => switchTab(false));
+$('helperTab').addEventListener('click', () => switchTab(true));
+
+// POST 통신 공통 함수
+async function post(data) {
+  const r = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8'
+    },
+    body: JSON.stringify(data)
+  });
+
+  if (!r.ok) {
+    throw new Error('HTTP ' + r.status);
+  }
+
+  return r.json();
+}
+
+// 학생 입장 확인
+$('studentForm').addEventListener('submit', async e => {
+  e.preventDefault();
+
+  const btn = e.submitter;
+  btn.disabled = true;
+
+  show('missionArea', false);
+  status('studentResult', '학생 정보 확인 중...');
+
+  try {
+    const url = new URL(API_URL);
+
+    url.searchParams.set('action', 'checkStudent');
+    url.searchParams.set('classNum', $('classNum').value);
+    url.searchParams.set('studentNum', $('studentNum').value);
+    url.searchParams.set(
+      'studentName',
+      $('studentName').value.trim()
+    );
+
+    const r = await fetch(url);
+
+    if (!r.ok) {
+      throw new Error('HTTP ' + r.status);
+    }
+
+    const data = await r.json();
+
+    status('studentResult', data.message, !!data.success);
+
+    if (data.success) {
+      show('missionArea', true);
+    }
+
+  } catch (err) {
+    status(
+      'studentResult',
+      '서버 연결을 확인해 주세요.',
+      false
+    );
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// 학생 미션 제출
+$('missionForm').addEventListener('submit', async e => {
+  e.preventDefault();
+
+  const btn = e.submitter;
+  btn.disabled = true;
+
+  status('submitResult', '제출 중...');
+
+  try {
+    const data = await post({
       action: 'submitMission',
-      mission: Number(
-        document.getElementById('missionNum').value
-      ),
-      url: document.getElementById('makecodeUrl').value.trim()
-    };
+      mission: Number($('missionNum').value),
+      url: $('makecodeUrl').value.trim()
+    });
 
-    if (!data.url) {
-      result.textContent = 'MakeCode 공유 URL을 입력해 주세요.';
+    status('submitResult', data.message, !!data.success);
+
+  } catch (err) {
+    status(
+      'submitResult',
+      '응답을 확인하지 못했습니다. 다시 제출하기 전에 시트에 저장됐는지 확인해 주세요.',
+      false
+    );
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// 도우미 로그인
+$('helperForm').addEventListener('submit', async e => {
+  e.preventDefault();
+
+  const btn = e.submitter;
+  btn.disabled = true;
+
+  status('helperResult', '로그인 중...');
+
+  try {
+    const data = await post({
+      action: 'helperLogin',
+      accountId: $('accountId').value.trim(),
+      password: $('helperPassword').value
+    });
+
+    if (!data.success) {
+      status(
+        'helperResult',
+        data.message || '로그인 실패',
+        false
+      );
       return;
     }
 
-    button.disabled = true;
-    result.textContent = '제출 중입니다...';
+    helperToken = data.token;
+    helperClass = data.classNum;
 
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8'
-        },
-        body: JSON.stringify(data),
-        redirect: 'follow'
-      });
+    $('helperPassword').value = '';
 
-      const json = await response.json();
-      result.textContent = json.message;
+    show('helperForm', false);
+    show('helperDashboard', true);
 
-    } catch (error) {
-      console.error(error);
-      result.textContent =
-        '제출 결과를 확인하지 못했습니다. 다시 제출하기 전에 시트를 확인해 주세요.';
-    } finally {
-      button.disabled = false;
-    }
-  });
-</script>
+    $('helperTitle').textContent =
+      helperClass + '반 미션 검수 목록';
 
-  
-<section style="margin:20px 0;padding:15px;border:1px solid #ccc;">
-  <h3>POST 통신 테스트</h3>
-  <button id="pingBtn" type="button">통신 확인</button>
-  <p id="pingResult" aria-live="polite"></p>
-</section>
+    await loadList();
 
-<script>
-document.getElementById('pingBtn').addEventListener('click', async () => {
-  const result = document.getElementById('pingResult');
-  const button = document.getElementById('pingBtn');
+  } catch (err) {
+    status(
+      'helperResult',
+      '로그인 응답을 읽지 못했습니다.',
+      false
+    );
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+  }
+});
 
-  button.disabled = true;
-  result.textContent = '통신 확인 중...';
+// 도우미 담당 반 미션 목록 조회
+async function loadList() {
+  if (!helperToken) return;
+
+  status('listResult', '제출 목록 확인 중...');
+  $('missionList').replaceChildren();
 
   try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8'
-      },
-      body: JSON.stringify({ action: 'ping' })
+    const data = await post({
+      action: 'helperMissionList',
+      token: helperToken
     });
- 
-    const data = await response.json();
-    result.textContent = data.message || '응답 확인 완료';
 
-  } catch (error) {
-    console.error(error);
-    result.textContent = '응답을 읽지 못했습니다.';
-  } finally {
-    button.disabled = false;
+    if (!data.success) {
+      status(
+        'listResult',
+        data.message || '조회 실패',
+        false
+      );
+
+      if (/만료/.test(data.message || '')) {
+        resetHelper();
+      }
+      return;
+    }
+
+    const items = data.missions || [];
+
+    status(
+      'listResult',
+      items.length + '건 조회 완료',
+      true
+    );
+
+    for (const item of items) {
+      const card = document.createElement('div');
+      card.className = 'item';
+
+      const header = document.createElement('strong');
+      header.textContent =
+        item.number + '번 ' + item.name +
+        ' · 미션 ' + item.mission +
+        ' · ' + item.status;
+
+      card.append(header);
+
+      const p = document.createElement('p');
+      const a = document.createElement('a');
+
+      try {
+        const u = new URL(item.url);
+
+        if (
+          u.protocol === 'https:' &&
+          u.hostname === 'makecode.microbit.org'
+        ) {
+          a.href = u.href;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = 'MakeCode 코드 확인';
+          p.append(a);
+        } else {
+          p.textContent = '공유 URL 확인 필요';
+        }
+      } catch {
+        p.textContent = '공유 URL 확인 필요';
+      }
+
+      card.append(p);
+      $('missionList').append(card);
+    }
+
+  } catch (err) {
+    status(
+      'listResult',
+      '목록을 불러오지 못했습니다.',
+      false
+    );
+    console.error(err);
+  }
+}
+
+// 도우미 화면 초기화
+function resetHelper() {
+  helperToken = '';
+  helperClass = '';
+
+  show('helperDashboard', false);
+  show('helperForm', true);
+  $('missionList').replaceChildren();
+}
+
+// 목록 새로고침
+$('refreshBtn').addEventListener('click', loadList);
+
+// 도우미 로그아웃
+$('logoutBtn').addEventListener('click', async () => {
+  const token = helperToken;
+
+  resetHelper();
+  status('helperResult', '로그아웃했습니다.', true);
+
+  try {
+    await post({
+      action: 'helperLogout',
+      token: token
+    });
+  } catch (err) {
+    console.error('서버 로그아웃 응답 확인 실패', err);
+    status(
+      'helperResult',
+      '화면에서 로그아웃했지만 서버 세션 종료를 확인하지 못했습니다.',
+      false
+    );
   }
 });
 </script>
-
-<body>
-  <h1>EXIT CODE</h1>
-  <h2>학생 입장 테스트</h2>
-
-  <label for="classNum">반</label>
-  <input id="classNum" value="1">
-
-  <label for="studentNum">번호</label>
-  <input id="studentNum" value="99">
-
-  <label for="studentName">이름</label>
-  <input id="studentName" value="테스트학생">
-
-  <button onclick="checkStudent()">입장 확인</button>
-  <p id="result">입장 확인 버튼을 눌러주세요.</p>
-
-  <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbzAtp31FIlNoPtN6Hd1ZsxPYZ3xyd-VMWTZXmTY8nmS_r-xQsw6lQedVDYXwJEF_1ms/exec";
-    
-
-    async function checkStudent() {
-      const result = document.getElementById("result");
-      result.textContent = "학생 정보 확인 중...";
-
-      const url = new URL(API_URL);
-      url.searchParams.set("action", "checkStudent");
-      url.searchParams.set("classNum",
-        document.getElementById("classNum").value);
-      url.searchParams.set("studentNum",
-        document.getElementById("studentNum").value);
-      url.searchParams.set("studentName",
-        document.getElementById("studentName").value);
-
-      try {
-        const response = await fetch(url.toString());
-        if (!response.ok) {
-          throw new Error("HTTP " + response.status);
-        }
-
-        const data = await response.json();
-        result.textContent = data.message;
-        result.style.color =
-          data.success ? "green" : "red";
-      } catch (error) {
-        result.textContent =
-          "서버 연결 오류: " + error.message;
-      }
-    }
-  </script>
 </body>
 </html>
