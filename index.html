@@ -125,7 +125,7 @@ document.getElementById('pingBtn').addEventListener('click', async () => {
       },
       body: JSON.stringify({ action: 'ping' })
     });
-
+ 
     const data = await response.json();
     result.textContent = data.message || '응답 확인 완료';
 
