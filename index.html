@@ -5,35 +5,75 @@
   <meta charset="UTF-8">
   <meta name="viewport"
         content="width=device-width, initial-scale=1">
-  <title>EXIT CODE 연결 테스트</title>
+  <title>EXIT CODE 학생 입장 테스트</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 420px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    input, button {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 14px;
+      margin: 8px 0;
+      font-size: 17px;
+    }
+    button {
+      background: #245cdb;
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-  <h2>EXIT CODE - API 연결 테스트</h2>
+  <h1>EXIT CODE</h1>
+  <h2>학생 입장 테스트</h2>
 
-  <button onclick="testConnection()">
-    Google 서버 연결 확인
-  </button>
+  <label for="classNum">반</label>
+  <input id="classNum" value="1">
 
-  <p id="result">아직 테스트하지 않았습니다.</p>
+  <label for="studentNum">번호</label>
+  <input id="studentNum" value="99">
+
+  <label for="studentName">이름</label>
+  <input id="studentName" value="테스트학생">
+
+  <button onclick="checkStudent()">입장 확인</button>
+  <p id="result">입장 확인 버튼을 눌러주세요.</p>
 
   <script>
-    // 본인의 Apps Script 웹앱 주소를 입력하세요.
-    const API_URL = "https://script.google.com/macros/s/AKfycbzAtp31FIlNoPtN6Hd1ZsxPYZ3xyd-VMWTZXmTY8nmS_r-xQsw6lQedVDYXwJEF_1ms/exec";
+    const API_URL = "여기에_기존_Apps_Script_URL";
 
-    async function testConnection() {
+    async function checkStudent() {
       const result = document.getElementById("result");
-      result.textContent = "연결 확인 중...";
+      result.textContent = "학생 정보 확인 중...";
+
+      const url = new URL(API_URL);
+      url.searchParams.set("action", "checkStudent");
+      url.searchParams.set("classNum",
+        document.getElementById("classNum").value);
+      url.searchParams.set("studentNum",
+        document.getElementById("studentNum").value);
+      url.searchParams.set("studentName",
+        document.getElementById("studentName").value);
 
       try {
-        const response = await fetch(API_URL);
-        const data = await response.json();
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
 
-        result.textContent =
-          data.success ? data.message : "서버 응답 오류";
+        const data = await response.json();
+        result.textContent = data.message;
+        result.style.color =
+          data.success ? "green" : "red";
       } catch (error) {
         result.textContent =
-          "연결 실패: " + error.message;
-        console.error(error);
+          "서버 연결 오류: " + error.message;
       }
     }
   </script>
