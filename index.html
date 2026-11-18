@@ -833,48 +833,19 @@ function renderSnackList() {
     list.append(card);
   }
 }
-
-// 검색어 입력 즉시 반영
-$('snackSearch').addEventListener('input', renderSnackList);
-
-// 지급 상태 변경 즉시 반영
-$('snackFilter').addEventListener('change', renderSnackList);
-
   
-// 간식 지급 목록 검색·필터
-let snackStudents = [];
+// 검색어 입력 즉시 반영
+const snackSearchInput = $('snackSearch');
+/ 지급 상태 변경 즉시 반영
+const snackFilterSelect = $('snackFilter');
 
-function renderSnackList() {
-  const keyword = $('snackSearch').value.trim().toLowerCase();
-  const filter = $('snackFilter').value;
-
-  $('snackList').replaceChildren();
-
-  const filtered = snackStudents.filter(student => {
-    const matchesSearch =
-      String(student.number).includes(keyword) ||
-      String(student.name).toLowerCase().includes(keyword);
-
-    const done = student.snackStatus === '지급완료';
-    const ready = student.mission3Approved && !done;
-    const progress = !student.mission3Approved && !done;
-
-    const matchesFilter =
-      filter === 'all' ||
-      (filter === 'ready' && ready) ||
-      (filter === 'done' && done) ||
-      (filter === 'progress' && progress);
-
-    return matchesSearch && matchesFilter;
-  });
-
-  // 기존 카드 렌더링은 다음 단계에서 이 함수로 옮깁니다.
-  status(
-    'snackResult',
-    '검색 결과 ' + filtered.length + '명',
-    true
-  );
+if (snackSearchInput && snackFilterSelect) {
+  snackSearchInput.addEventListener('input', renderSnackList);
+  snackFilterSelect.addEventListener('change', renderSnackList);
 }
+
+
+
 
 $('snackSearch').addEventListener('input', renderSnackList);
 $('snackFilter').addEventListener('change', renderSnackList);
