@@ -207,6 +207,44 @@ footer {
       <!-- 간식 지급 관리 -->
       <section id="snackArea" style="margin-top:30px;">
         <h2>간식 지급 관리</h2>
+
+        <div style="margin:15px 0;">
+          <label for="snackSearch">학생 검색</label>
+          <input
+            id="snackSearch"
+            type="search"
+            placeholder="번호 또는 이름 입력"
+            autocomplete="off"
+          >
+        
+          <label for="snackFilter">지급 상태</label>
+          <select id="snackFilter">
+            <option value="all">전체 학생</option>
+            <option value="ready">지급 대기</option>
+            <option value="done">지급 완료</option>
+            <option value="progress">미션 진행 중</option>
+          </select>
+        </div>
+        
+        <!-- 간식 지급 검색 및 필터 -->
+        <div style="margin:15px 0;">
+          <label for="snackSearch">학생 검색</label>
+          <input
+            id="snackSearch"
+            type="search"
+            placeholder="번호 또는 이름 입력"
+            autocomplete="off"
+          >
+        
+          <label for="snackFilter">지급 상태</label>
+          <select id="snackFilter">
+            <option value="all">전체 학생</option>
+            <option value="ready">지급 대기</option>
+            <option value="done">지급 완료</option>
+            <option value="progress">미션 진행 중</option>
+          </select>
+        </div>
+
         <p id="snackResult" class="notice" role="status"></p>
         <div id="snackList"></div>
       </section>
@@ -614,11 +652,16 @@ $('logoutBtn').addEventListener('click', async () => {
 /**
  * 담당 반 간식 지급 현황 조회
  */
+
+let snackStudents = [];
+
+/**
+ * 서버에서 담당 반 간식 현황 가져오기
+ */
 async function loadSnackList() {
   if (!helperToken) return;
 
   status('snackResult', '간식 현황 확인 중...');
-  $('snackList').replaceChildren();
 
   try {
     const data = await post({
@@ -635,101 +678,24 @@ async function loadSnackList() {
       return;
     }
 
-    // 미션 3 승인 학생을 위쪽에 표시
-    const students = (data.students || []).sort((a, b) => {
-      if (a.mission3Approved !== b.mission3Approved) {
-        return a.mission3Approved ? -1 : 1;
-      }
-      return Number(a.number) - Number(b.number);
+    snackStudents = (data.students || []).sort((a, b) => {
+      const aDone = a.snackStatus === '지급완료';
+      const bDone = b.snackStatus === '지급완료';
+
+      const aReady = a.mission3Approved && !aDone;
+      const bReady = b.mission3Approved && !bDone;
+
+      const priority = s => {
+        if (s.snackStatus === '지급완료') return 1;
+        if (s.mission3Approved) return 0;
+        return 2;
+      };
+
+      return priority(a) - priority(b) ||
+        Number(a.number) - Number(b.number);
     });
 
-    status(
-      'snackResult',
-      '전체 ' + students.length + '명',
-      true
-    );
-
-    for (const student of students) {
-      const card = document.createElement('div');
-      card.className = 'item';
-
-      const title = document.createElement('strong');
-      title.textContent =
-        student.number + '번 ' + student.name;
-
-      const info = document.createElement('p');
-      info.textContent =
-        '미션 3: ' +
-        (student.mission3Approved ? '승인' : '미승인') +
-        ' / 간식: ' + student.snackStatus;
-
-      card.append(title, info);
-
-      let action = '';
-      let label = '';
-
-      if (student.snackStatus === '지급완료') {
-        action = 'cancel';
-        label = '지급 취소';
-      } else if (student.mission3Approved) {
-        action = 'give';
-        label = '간식 지급 완료';
-      }
-
-      if (action) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.textContent = label;
-
-        if (action === 'cancel') {
-          button.className = 'secondary';
-        }
-
-        button.addEventListener('click', async () => {
-          const confirmed = confirm(
-            student.number + '번 ' + student.name +
-            ' 학생의 간식을 ' + label + ' 처리할까요?'
-          );
-
-          if (!confirmed) return;
-
-          button.disabled = true;
-          status('snackResult', '간식 처리 중...');
-
-          try {
-            const result = await post({
-              action: 'helperSnack',
-              token: helperToken,
-              studentId: student.studentId,
-              snackAction: action
-            });
-
-            if (result.success) {
-              await loadSnackList();
-            } else {
-              status(
-                'snackResult',
-                result.message || '간식 처리 실패',
-                false
-              );
-              button.disabled = false;
-            }
-
-          } catch (error) {
-            console.error(error);
-            status(
-              'snackResult',
-              '처리 결과를 확인하지 못했습니다. 새로고침 후 지급 상태를 확인해 주세요.',
-              false
-            );
-          }
-        });
-
-        card.append(button);
-      }
-
-      $('snackList').append(card);
-    }
+    renderSnackList();
 
   } catch (error) {
     console.error(error);
@@ -740,6 +706,178 @@ async function loadSnackList() {
     );
   }
 }
+
+/**
+ * 검색 및 필터 적용 후 학생 카드 표시
+ */
+function renderSnackList() {
+  const keyword = $('snackSearch').value.trim().toLowerCase();
+  const filter = $('snackFilter').value;
+
+  const list = $('snackList');
+  list.replaceChildren();
+
+  const filtered = snackStudents.filter(student => {
+    const matchesSearch =
+      String(student.number).includes(keyword) ||
+      String(student.name).toLowerCase().includes(keyword);
+
+    const done = student.snackStatus === '지급완료';
+    const ready = student.mission3Approved && !done;
+    const progress = !student.mission3Approved && !done;
+
+    const matchesFilter =
+      filter === 'all' ||
+      (filter === 'ready' && ready) ||
+      (filter === 'done' && done) ||
+      (filter === 'progress' && progress);
+
+    return matchesSearch && matchesFilter;
+  });
+
+  status(
+    'snackResult',
+    '검색 결과 ' + filtered.length +
+    '명 / 전체 ' + snackStudents.length + '명',
+    true
+  );
+
+  if (filtered.length === 0) {
+    const empty = document.createElement('p');
+    empty.textContent = '해당하는 학생이 없습니다.';
+    list.append(empty);
+    return;
+  }
+
+  for (const student of filtered) {
+    const card = document.createElement('div');
+    card.className = 'item';
+
+    const title = document.createElement('strong');
+    title.textContent =
+      student.number + '번 ' + student.name;
+
+    const info = document.createElement('p');
+    info.textContent =
+      '미션 3: ' +
+      (student.mission3Approved ? '승인' : '미승인') +
+      ' / 간식: ' + student.snackStatus;
+
+    card.append(title, info);
+
+    let action = '';
+    let label = '';
+
+    if (student.snackStatus === '지급완료') {
+      action = 'cancel';
+      label = '지급 취소';
+    } else if (student.mission3Approved) {
+      action = 'give';
+      label = '간식 지급 완료';
+    }
+
+    if (action) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+
+      if (action === 'cancel') {
+        button.className = 'secondary';
+      }
+
+      button.addEventListener('click', async () => {
+        const confirmed = confirm(
+          student.number + '번 ' + student.name +
+          ' 학생의 간식을 ' + label + ' 처리할까요?'
+        );
+
+        if (!confirmed) return;
+
+        button.disabled = true;
+        status('snackResult', '간식 처리 중...');
+
+        try {
+          const result = await post({
+            action: 'helperSnack',
+            token: helperToken,
+            studentId: student.studentId,
+            snackAction: action
+          });
+
+          if (result.success) {
+            // 검색어와 필터를 유지한 채 최신 목록 조회
+            await loadSnackList();
+          } else {
+            status(
+              'snackResult',
+              result.message || '간식 처리 실패',
+              false
+            );
+            button.disabled = false;
+          }
+
+        } catch (error) {
+          console.error(error);
+          status(
+            'snackResult',
+            '처리 결과를 확인하지 못했습니다. 새로고침 후 지급 상태를 확인해 주세요.',
+            false
+          );
+          // 중복 지급 방지를 위해 버튼을 비활성 상태로 유지
+        }
+      });
+
+      card.append(button);
+    }
+
+    list.append(card);
+  }
+}
+
+// 검색어 입력 즉시 반영
+$('snackSearch').addEventListener('input', renderSnackList);
+
+// 지급 상태 변경 즉시 반영
+$('snackFilter').addEventListener('change', renderSnackList);
+
+  
+// 간식 지급 목록 검색·필터
+let snackStudents = [];
+
+function renderSnackList() {
+  const keyword = $('snackSearch').value.trim().toLowerCase();
+  const filter = $('snackFilter').value;
+
+  $('snackList').replaceChildren();
+
+  const filtered = snackStudents.filter(student => {
+    const matchesSearch =
+      String(student.number).includes(keyword) ||
+      String(student.name).toLowerCase().includes(keyword);
+
+    const done = student.snackStatus === '지급완료';
+    const ready = student.mission3Approved && !done;
+    const progress = !student.mission3Approved && !done;
+
+    const matchesFilter =
+      filter === 'all' ||
+      (filter === 'ready' && ready) ||
+      (filter === 'done' && done) ||
+      (filter === 'progress' && progress);
+
+    return matchesSearch && matchesFilter;
+  });
+
+  // 기존 카드 렌더링은 다음 단계에서 이 함수로 옮깁니다.
+  status(
+    'snackResult',
+    '검색 결과 ' + filtered.length + '명',
+    true
+  );
+}
+
+$('snackSearch').addEventListener('input', renderSnackList);
+$('snackFilter').addEventListener('change', renderSnackList);
 
 </script>
 </body>
