@@ -461,8 +461,95 @@ async function loadList() {
         p.textContent = '공유 URL 확인 필요';
       }
 
-      card.append(p);
-      $('missionList').append(card);
+     
+card.append(p);
+
+// 검수 버튼 영역
+const actions = document.createElement('div');
+actions.style.display = 'flex';
+actions.style.gap = '8px';
+actions.style.flexWrap = 'wrap';
+
+const currentStatus = String(item.status || '');
+const submissionId = String(item.submissionId || '');
+
+function addReviewButton(label, reviewAction) {
+  const button = document.createElement('button');
+
+  button.type = 'button';
+  button.textContent = label;
+  button.style.flex = '1';
+  button.style.minWidth = '90px';
+
+  button.addEventListener('click', async () => {
+    if (!confirm(
+      item.number + '번 미션 ' + item.mission +
+      '을(를) ' + label + ' 처리할까요?'
+    )) {
+      return;
+    }
+
+    // 처리 중 중복 클릭 방지
+    actions.querySelectorAll('button').forEach(btn => {
+      btn.disabled = true;
+    });
+
+    status('listResult', '검수 처리 중...');
+
+    try {
+      const result = await post({
+        action: 'helperReviewMission',
+        token: helperToken,
+        submissionId: submissionId,
+        reviewAction: reviewAction
+      });
+
+      if (result.success) {
+        // 처리 후 서버에서 최신 목록 다시 조회
+        await loadList();
+      } else {
+        status(
+          'listResult',
+          result.message || '검수 처리 실패',
+          false
+        );
+
+        actions.querySelectorAll('button').forEach(btn => {
+          btn.disabled = false;
+        });
+      }
+
+    } catch (error) {
+      console.error(error);
+
+      status(
+        'listResult',
+        '검수 결과를 확인하지 못했습니다. 목록을 새로고침해 상태를 확인해 주세요.',
+        false
+      );
+
+      // 결과를 알 수 없으므로 즉시 재처리하지 않도록 유지
+    }
+  });
+
+  actions.append(button);
+}
+
+if (currentStatus === '대기') {
+  addReviewButton('승인', 'approve');
+  addReviewButton('재도전', 'retry');
+}
+
+if (
+  currentStatus === '승인' ||
+  currentStatus === '재도전'
+) {
+  addReviewButton('검수 취소', 'cancel');
+}
+
+card.append(actions);
+$('missionList').append(card);
+
     }
 
   } catch (err) {
