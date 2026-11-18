@@ -203,6 +203,14 @@ footer {
 
       <p id="listResult" class="notice" role="status"></p>
       <div id="missionList"></div>
+      
+      <!-- 간식 지급 관리 -->
+      <section id="snackArea" style="margin-top:30px;">
+        <h2>간식 지급 관리</h2>
+        <p id="snackResult" class="notice" role="status"></p>
+        <div id="snackList"></div>
+      </section>
+
     </section>
   </section>
 
@@ -380,6 +388,7 @@ $('helperForm').addEventListener('submit', async e => {
       helperClass + '반 미션 검수 목록';
 
     await loadList();
+    await loadSnackList();
 
   } catch (err) {
     status(
@@ -570,10 +579,14 @@ function resetHelper() {
   show('helperDashboard', false);
   show('helperForm', true);
   $('missionList').replaceChildren();
+  $('snackList').replaceChildren();
 }
 
 // 목록 새로고침
-$('refreshBtn').addEventListener('click', loadList);
+$('refreshBtn').addEventListener('click', async () => {
+  await loadList();
+  await loadSnackList();
+});
 
 // 도우미 로그아웃
 $('logoutBtn').addEventListener('click', async () => {
@@ -596,6 +609,138 @@ $('logoutBtn').addEventListener('click', async () => {
     );
   }
 });
+
+  
+/**
+ * 담당 반 간식 지급 현황 조회
+ */
+async function loadSnackList() {
+  if (!helperToken) return;
+
+  status('snackResult', '간식 현황 확인 중...');
+  $('snackList').replaceChildren();
+
+  try {
+    const data = await post({
+      action: 'helperSnackList',
+      token: helperToken
+    });
+
+    if (!data.success) {
+      status(
+        'snackResult',
+        data.message || '간식 현황 조회 실패',
+        false
+      );
+      return;
+    }
+
+    // 미션 3 승인 학생을 위쪽에 표시
+    const students = (data.students || []).sort((a, b) => {
+      if (a.mission3Approved !== b.mission3Approved) {
+        return a.mission3Approved ? -1 : 1;
+      }
+      return Number(a.number) - Number(b.number);
+    });
+
+    status(
+      'snackResult',
+      '전체 ' + students.length + '명',
+      true
+    );
+
+    for (const student of students) {
+      const card = document.createElement('div');
+      card.className = 'item';
+
+      const title = document.createElement('strong');
+      title.textContent =
+        student.number + '번 ' + student.name;
+
+      const info = document.createElement('p');
+      info.textContent =
+        '미션 3: ' +
+        (student.mission3Approved ? '승인' : '미승인') +
+        ' / 간식: ' + student.snackStatus;
+
+      card.append(title, info);
+
+      let action = '';
+      let label = '';
+
+      if (student.snackStatus === '지급완료') {
+        action = 'cancel';
+        label = '지급 취소';
+      } else if (student.mission3Approved) {
+        action = 'give';
+        label = '간식 지급 완료';
+      }
+
+      if (action) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+
+        if (action === 'cancel') {
+          button.className = 'secondary';
+        }
+
+        button.addEventListener('click', async () => {
+          const confirmed = confirm(
+            student.number + '번 ' + student.name +
+            ' 학생의 간식을 ' + label + ' 처리할까요?'
+          );
+
+          if (!confirmed) return;
+
+          button.disabled = true;
+          status('snackResult', '간식 처리 중...');
+
+          try {
+            const result = await post({
+              action: 'helperSnack',
+              token: helperToken,
+              studentId: student.studentId,
+              snackAction: action
+            });
+
+            if (result.success) {
+              await loadSnackList();
+            } else {
+              status(
+                'snackResult',
+                result.message || '간식 처리 실패',
+                false
+              );
+              button.disabled = false;
+            }
+
+          } catch (error) {
+            console.error(error);
+            status(
+              'snackResult',
+              '처리 결과를 확인하지 못했습니다. 새로고침 후 지급 상태를 확인해 주세요.',
+              false
+            );
+          }
+        });
+
+        card.append(button);
+      }
+
+      $('snackList').append(card);
+    }
+
+  } catch (error) {
+    console.error(error);
+    status(
+      'snackResult',
+      '간식 목록을 불러오지 못했습니다.',
+      false
+    );
+  }
+}
+
 </script>
 </body>
 </html>
