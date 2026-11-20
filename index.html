@@ -93,6 +93,16 @@ footer {
   color: #65718a;
   font-size: 13px;
 }
+ .stage-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:9px 0 14px; }
+.stage-pill {padding:9px 4px;border-radius:8px;text-align:center;font-size:13px;font-weight:700;border:1px solid #cbd5e1;}
+.stage-pill.done {background:#dcfce7;color:#166534;border-color:#86efac;}
+.stage-pill.wait {background:#f1f5f9;color:#475569;}
+.stage-pill.retry {background:#fef3c7;color:#92400e;}
+.stage-pill.paid {background:#15803d;color:white;border-color:#15803d;}
+.stage-pill.unpaid {background:#e2e8f0;color:#334155;}
+.stage-actions {display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}
+.stage-actions button {flex:1;min-width:100px;font-size:13px;padding:10px 6px;}
+.stage-note {font-size:13px;color:#9a3412;font-weight:700;}
 </style>
 </head>
 
@@ -193,7 +203,8 @@ footer {
       
       <!-- 간식 지급 관리 -->
       <section id="snackArea" style="margin-top:30px;">
-        <h2>간식 지급 관리</h2>
+        <h2>학생별 미션·간식 현황</h2>
+        <p><small>미션 1~2는 서버에 저장되지 않습니다. 3~5단계 검수와 지급 기록을 표시합니다.</small></p>
 
         <div style="margin:15px 0;">
           <label for="snackSearch">학생 검색</label>
@@ -662,178 +673,82 @@ $('logoutBtn').addEventListener('click', async () => {
  * 담당 반 간식 지급 현황 조회
  */
 
-let snackStudents = [];
-
-/**
- * 서버에서 담당 반 간식 현황 가져오기
- */
+let snackStudents=[];
 async function loadSnackList() {
-  if (!helperToken) return;
-
-  status('snackResult', '간식 현황 확인 중...');
-
+  if(!helperToken) return;
+  status('snackResult','학생별 현황 확인 중...');
   try {
-    const data = await post({
-      action: 'helperSnackList',
-      token: helperToken
-    });
-
-    if (!data.success) {
-      status(
-        'snackResult',
-        data.message || '간식 현황 조회 실패',
-        false
-      );
-      return;
-    }
-
-    snackStudents = (data.students || []).sort((a, b) => {
-      const priority = s => {
-        if (s.snackStatus === '지급완료') return 1;
-        if (s.mission3Approved) return 0;
-        return 2;
-      };
-
-      return priority(a) - priority(b) ||
-        Number(a.number) - Number(b.number);
-    });
-
+    const data=await post({action:'helperSnackList',token:helperToken});
+    if(!data.success) {status('snackResult',data.message||'조회 실패',false);return;}
+    snackStudents=data.students||[];
     renderSnackList();
-
-  } catch (error) {
-    console.error(error);
-    status(
-      'snackResult',
-      '간식 목록을 불러오지 못했습니다.',
-      false
-    );
-  }
+  } catch(err) {console.error(err);status('snackResult','현황을 불러오지 못했습니다.',false);}
 }
-
-/**
- * 검색 및 필터 적용 후 학생 카드 표시
- */
+function addStagePill(parent,stage,label,kind) {
+  const pill=document.createElement('div');
+  pill.className='stage-pill '+kind;
+  pill.textContent=stage+'단계 '+label;
+  parent.append(pill);
+}
 function renderSnackList() {
-  const keyword = $('snackSearch').value.trim().toLowerCase();
-  const filter = $('snackFilter').value;
-
-  const list = $('snackList');
-  list.replaceChildren();
-
-  const filtered = snackStudents.filter(student => {
-    const matchesSearch =
-      String(student.number).includes(keyword) ||
-      String(student.name).toLowerCase().includes(keyword);
-
-    const done = student.snackStatus === '지급완료';
-    const ready = student.mission3Approved && !done;
-    const progress = !student.mission3Approved && !done;
-
-    const matchesFilter =
-      filter === 'all' ||
-      (filter === 'ready' && ready) ||
-      (filter === 'done' && done) ||
-      (filter === 'progress' && progress);
-
-    return matchesSearch && matchesFilter;
+  const keyword=$('snackSearch').value.trim().toLowerCase();
+  const filter=$('snackFilter').value;
+  const list=$('snackList');list.replaceChildren();
+  const filtered=snackStudents.filter(s=>{
+    const match=String(s.number).includes(keyword)||String(s.name).toLowerCase().includes(keyword);
+    const ready=[3,4,5].some(n=>s.missions[n]==='승인'&&s.snacks[n]!=='지급완료');
+    const done=[3,4,5].some(n=>s.snacks[n]==='지급완료');
+    const progress=![3,4,5].every(n=>s.missions[n]==='승인');
+    return match && (filter==='all'||(filter==='ready'&&ready)||(filter==='done'&&done)||(filter==='progress'&&progress));
   });
-
-  status(
-    'snackResult',
-    '검색 결과 ' + filtered.length +
-    '명 / 전체 ' + snackStudents.length + '명',
-    true
-  );
-
-  if (filtered.length === 0) {
-    const empty = document.createElement('p');
-    empty.textContent = '해당하는 학생이 없습니다.';
-    list.append(empty);
-    return;
-  }
-
-  for (const student of filtered) {
-    const card = document.createElement('div');
-    card.className = 'item';
-
-    const title = document.createElement('strong');
-    title.textContent =
-      student.number + '번 ' + student.name;
-
-    const info = document.createElement('p');
-    info.textContent =
-      '미션 3: ' +
-      (student.mission3Approved ? '승인' : '미승인') +
-      ' / 간식: ' + student.snackStatus;
-
-    card.append(title, info);
-
-    let action = '';
-    let label = '';
-
-    if (student.snackStatus === '지급완료') {
-      action = 'cancel';
-      label = '지급 취소';
-    } else if (student.mission3Approved) {
-      action = 'give';
-      label = '간식 지급 완료';
+  status('snackResult','검색 결과 '+filtered.length+'명 / 전체 '+snackStudents.length+'명',true);
+  if(!filtered.length) {const p=document.createElement('p');p.textContent='해당하는 학생이 없습니다.';list.append(p);return;}
+  for(const s of filtered) {
+    const card=document.createElement('div');card.className='item';
+    const title=document.createElement('strong');title.textContent=s.number+'번 '+s.name;card.append(title);
+    const mTitle=document.createElement('p');mTitle.textContent='미션 검수 현황';card.append(mTitle);
+    const mGrid=document.createElement('div');mGrid.className='stage-grid';
+    for(const n of [3,4,5]) {
+      const state=s.missions[n]||'미제출';
+      addStagePill(mGrid,n,state,state==='승인'?'done':state==='재도전'?'retry':'wait');
     }
-
-    if (action) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = label;
-
-      if (action === 'cancel') {
-        button.className = 'secondary';
-      }
-
-      button.addEventListener('click', async () => {
-        const confirmed = confirm(
-          student.number + '번 ' + student.name +
-          ' 학생의 간식을 ' + label + ' 처리할까요?'
-        );
-
-        if (!confirmed) return;
-
-        button.disabled = true;
-        status('snackResult', '간식 처리 중...');
-
+    card.append(mGrid);
+    const sTitle=document.createElement('p');sTitle.textContent='간식 지급 현황';card.append(sTitle);
+    const sGrid=document.createElement('div');sGrid.className='stage-grid';
+    for(const n of [3,4,5]) {
+      const paid=s.snacks[n]==='지급완료';
+      addStagePill(sGrid,n,paid?'지급':'미지급',paid?'paid':'unpaid');
+    }
+    card.append(sGrid);
+    if(s.missions[5]==='승인' && s.missions[4]!=='승인') {
+      const p=document.createElement('p');p.className='stage-note';
+      p.textContent='※ 4단계 미완료 · 5단계 승인 → 5단계 지급 시 4단계 수준 간식 제공';card.append(p);
+    }
+    const actions=document.createElement('div');actions.className='stage-actions';
+    for(const n of [3,4,5]) {
+      const paid=s.snacks[n]==='지급완료';
+      const approved=s.missions[n]==='승인';
+      if(!paid && !approved) continue;
+      const btn=document.createElement('button');btn.type='button';
+      btn.className=paid?'secondary':'';
+      btn.textContent=n+'단계 '+(paid?'지급 취소':'지급완료');
+      btn.addEventListener('click',async()=>{
+        const tier=n===5 && s.missions[4]!=='승인'?4:n;
+        const msg=paid ? n+'단계 지급 기록을 취소할까요? (실제 간식 회수 아님)' :
+          n+'단계 미션 간식을 실제 전달했나요?\n제공할 간식: '+tier+'단계 수준';
+        if(!confirm(s.number+'번 '+s.name+'\n'+msg)) return;
+        actions.querySelectorAll('button').forEach(b=>b.disabled=true);
+        status('snackResult','간식 처리 중...');
         try {
-          const result = await post({
-            action: 'helperSnack',
-            token: helperToken,
-            studentId: student.studentId,
-            snackAction: action
-          });
-
-          if (result.success) {
-            // 검색어와 필터를 유지한 채 최신 목록 조회
-            await loadSnackList();
-          } else {
-            status(
-              'snackResult',
-              result.message || '간식 처리 실패',
-              false
-            );
-            button.disabled = false;
-          }
-
-        } catch (error) {
-          console.error(error);
-          status(
-            'snackResult',
-            '처리 결과를 확인하지 못했습니다. 새로고침 후 지급 상태를 확인해 주세요.',
-            false
-          );
-          // 중복 지급 방지를 위해 버튼을 비활성 상태로 유지
-        }
+          const result=await post({action:'helperSnack',token:helperToken,studentId:s.studentId,
+            snackStage:n,snackAction:paid?'cancel':'give'});
+          if(result.success) await loadSnackList();
+          else {status('snackResult',result.message||'처리 실패',false);actions.querySelectorAll('button').forEach(b=>b.disabled=false);}
+        } catch(err) {console.error(err);status('snackResult','처리 결과를 확인하지 못했습니다. 새로고침 후 확인해 주세요.',false);}
       });
-
-      card.append(button);
+      actions.append(btn);
     }
-
-    list.append(card);
+    card.append(actions);list.append(card);
   }
 }
 
