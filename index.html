@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EXIT CODE | 입장 테스트</title>
+<title>EXIT CODE | 미션 관리</title>
 
 <style>
 :root {
@@ -22,7 +22,6 @@ main {
   background: white;
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 5px 20px #13264b12;
 }
 h1 { margin: 0 0 6px; }
 h2 { font-size: 21px; }
@@ -100,7 +99,7 @@ footer {
 <body>
 <main>
   <h1>EXIT CODE</h1>
-  <small>1차시 기능 테스트 · 가상 학생 데이터 전용</small>
+  <small>1차시 미션 관리 · 현재 가상 학생 데이터 전용</small>
 
   <!-- 학생 / 도우미 선택 -->
   <nav aria-label="입장 유형">
@@ -115,50 +114,41 @@ footer {
   <!-- 학생 화면 -->
   <section id="studentArea">
     <form id="studentForm">
-      <h2>학생 입장 확인</h2>
-
+      <h2>학생 입장</h2>
       <label for="classNum">반</label>
       <select id="classNum" required>
-        <option value="1">1반</option>
-        <option value="2">2반</option>
-        <option value="3">3반</option>
-        <option value="4">4반</option>
+        <option value="1">1반</option><option value="2">2반</option>
+        <option value="3">3반</option><option value="4">4반</option>
         <option value="5">5반</option>
       </select>
-
       <label for="studentNum">번호</label>
-      <input id="studentNum" type="number"
-             min="1" max="99" value="99" required>
-
+      <input id="studentNum" type="number" min="1" max="99" required>
       <label for="studentName">이름</label>
-      <input id="studentName" maxlength="30"
-             value="테스트학생" required>
-
+      <input id="studentName" maxlength="30" autocomplete="off" required>
       <button type="submit">입장 확인</button>
       <p id="studentResult" class="notice" role="status"></p>
     </form>
-
-    <!-- 입장 확인 후 표시 -->
     <section id="missionArea" class="hidden">
-      <h2>미션 제출 테스트</h2>
-      <small>
-        현재 서버는 1반 99번 테스트학생으로만 저장합니다.
-      </small>
-
+      <div class="topline">
+        <h2 id="studentTitle">나의 미션</h2>
+        <button id="studentLogoutBtn" class="secondary" type="button">나가기</button>
+      </div>
+      <p><small>미션 1~2는 화면에서 연습 완료 표시만 합니다. 서버에는 저장되지 않습니다.</small></p>
+      <div class="item"><strong>미션 1 · 복습</strong>
+        <p><label><input type="checkbox" id="mission1Check" style="width:auto"> 연습 완료</label></p></div>
+      <div class="item"><strong>미션 2 · 응용</strong>
+        <p><label><input type="checkbox" id="mission2Check" style="width:auto"> 연습 완료</label></p></div>
+      <h2>미션 3~5 제출</h2>
+      <p><button id="studentRefreshBtn" class="secondary" type="button">내 미션 상태 새로고침</button></p>
+      <p id="studentStatusResult" class="notice" role="status"></p>
+      <div id="studentMissionStatus"></div>
       <form id="missionForm">
         <label for="missionNum">미션 선택</label>
-        <select id="missionNum">
-          <option value="3">미션 3</option>
-          <option value="4">미션 4</option>
-          <option value="5">미션 5</option>
-        </select>
-
+        <select id="missionNum"><option value="3">미션 3</option>
+          <option value="4">미션 4</option><option value="5">미션 5</option></select>
         <label for="makecodeUrl">MakeCode 공유 URL</label>
-        <input id="makecodeUrl" type="url"
-               placeholder="https://makecode.microbit.org/#pub:..."
-               required>
-
-        <button type="submit">미션 제출</button>
+        <input id="makecodeUrl" type="url" placeholder="https://makecode.microbit.org/#pub:..." required>
+        <button type="submit" id="missionSubmitBtn">미션 제출</button>
         <p id="submitResult" class="notice" role="status"></p>
       </form>
     </section>
@@ -190,10 +180,7 @@ footer {
         </button>
       </div>
 
-      <small>
-        현재는 조회 전용입니다.
-        승인·재도전·검수 취소는 다음 단계에서 연결합니다.
-      </small>
+      <small>담당 반 제출 내역을 검수합니다.</small>
 
       <p>
         <button id="refreshBtn" type="button" class="secondary">
@@ -226,25 +213,6 @@ footer {
           </select>
         </div>
         
-        <!-- 간식 지급 검색 및 필터 -->
-        <div style="margin:15px 0;">
-          <label for="snackSearch">학생 검색</label>
-          <input
-            id="snackSearch"
-            type="search"
-            placeholder="번호 또는 이름 입력"
-            autocomplete="off"
-          >
-        
-          <label for="snackFilter">지급 상태</label>
-          <select id="snackFilter">
-            <option value="all">전체 학생</option>
-            <option value="ready">지급 대기</option>
-            <option value="done">지급 완료</option>
-            <option value="progress">미션 진행 중</option>
-          </select>
-        </div>
-
         <p id="snackResult" class="notice" role="status"></p>
         <div id="snackList"></div>
       </section>
@@ -312,80 +280,120 @@ async function post(data) {
   return r.json();
 }
 
-// 학생 입장 확인
+// 학생 세션은 메모리에만 보관 (새로고침하면 재로그인)
+let studentToken = '';
+let studentMissions = [];
+
+function resetStudent() {
+  studentToken = '';
+  studentMissions = [];
+  show('studentForm', true);
+  show('missionArea', false);
+  $('studentMissionStatus').replaceChildren();
+  $('makecodeUrl').value = '';
+  $('mission1Check').checked = false;
+  $('mission2Check').checked = false;
+}
+
 $('studentForm').addEventListener('submit', async e => {
   e.preventDefault();
-
   const btn = e.submitter;
   btn.disabled = true;
-
-  show('missionArea', false);
   status('studentResult', '학생 정보 확인 중...');
-
-  try {
-    const url = new URL(API_URL);
-
-    url.searchParams.set('action', 'checkStudent');
-    url.searchParams.set('classNum', $('classNum').value);
-    url.searchParams.set('studentNum', $('studentNum').value);
-    url.searchParams.set(
-      'studentName',
-      $('studentName').value.trim()
-    );
-
-    const r = await fetch(url);
-
-    if (!r.ok) {
-      throw new Error('HTTP ' + r.status);
-    }
-
-    const data = await r.json();
-
-    status('studentResult', data.message, !!data.success);
-
-    if (data.success) {
-      show('missionArea', true);
-    }
-
-  } catch (err) {
-    status(
-      'studentResult',
-      '서버 연결을 확인해 주세요.',
-      false
-    );
-    console.error(err);
-  } finally {
-    btn.disabled = false;
-  }
-});
-
-// 학생 미션 제출
-$('missionForm').addEventListener('submit', async e => {
-  e.preventDefault();
-
-  const btn = e.submitter;
-  btn.disabled = true;
-
-  status('submitResult', '제출 중...');
-
   try {
     const data = await post({
-      action: 'submitMission',
-      mission: Number($('missionNum').value),
-      url: $('makecodeUrl').value.trim()
+      action:'studentLogin',classNum:$('classNum').value,
+      studentNum:$('studentNum').value,studentName:$('studentName').value.trim()
     });
-
-    status('submitResult', data.message, !!data.success);
-
+    status('studentResult', data.message || '입장 실패', !!data.success);
+    if (!data.success) return;
+    studentToken = data.token;
+    $('studentTitle').textContent = data.student.classNum+'반 '+data.student.number+'번 '+data.student.name;
+    show('studentForm', false);
+    show('missionArea', true);
+    await loadStudentStatus();
   } catch (err) {
-    status(
-      'submitResult',
-      '응답을 확인하지 못했습니다. 다시 제출하기 전에 시트에 저장됐는지 확인해 주세요.',
-      false
-    );
+    status('studentResult','학생 입장 요청을 확인하지 못했습니다.',false);
     console.error(err);
-  } finally {
-    btn.disabled = false;
+  } finally {btn.disabled=false;}
+});
+
+async function loadStudentStatus() {
+  if (!studentToken) return;
+  status('studentStatusResult','미션 상태 확인 중...');
+  try {
+    const data = await post({action:'studentStatus',token:studentToken});
+    if (!data.success) {
+      status('studentStatusResult',data.message || '조회 실패',false);
+      if (/만료/.test(data.message || '')) resetStudent();
+      return;
+    }
+    studentMissions = data.missions || [];
+    renderStudentStatus();
+  } catch(err) {
+    status('studentStatusResult','상태를 불러오지 못했습니다.',false);
+    console.error(err);
+  }
+}
+
+function renderStudentStatus() {
+  const list = $('studentMissionStatus');
+  list.replaceChildren();
+  for (const mission of [3,4,5]) {
+    const item = studentMissions.find(x=>Number(x.mission)===mission);
+    const card = document.createElement('div');
+    card.className='item';
+    const strong=document.createElement('strong');
+    strong.textContent='미션 '+mission+' · '+(item?item.status:'미제출');
+    card.append(strong);
+    if (item && item.status==='재도전') {
+      const p=document.createElement('p');
+      p.textContent='코드를 수정한 뒤 해당 미션을 선택해 다시 제출하세요.';
+      card.append(p);
+    }
+    list.append(card);
+  }
+  status('studentStatusResult','미션 상태 확인 완료',true);
+  updateStudentSubmit();
+}
+
+function updateStudentSubmit() {
+  const mission=Number($('missionNum').value);
+  const item=studentMissions.find(x=>Number(x.mission)===mission);
+  const allowed=!item || item.status==='재도전';
+  $('missionSubmitBtn').disabled=!allowed;
+  $('missionSubmitBtn').textContent=item && item.status==='재도전'?'재도전 제출':'미션 제출';
+  if (!allowed) status('submitResult','이 미션은 '+item.status+' 상태입니다. 재제출할 수 없습니다.');
+  else status('submitResult','');
+}
+$('missionNum').addEventListener('change',updateStudentSubmit);
+$('studentRefreshBtn').addEventListener('click',loadStudentStatus);
+$('studentLogoutBtn').addEventListener('click',async()=>{
+  const token=studentToken;
+  resetStudent();
+  status('studentResult','학생 화면에서 나왔습니다.',true);
+  try {await post({action:'studentLogout',token});} catch(err){console.error(err);}
+});
+
+$('missionForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  if (!studentToken) return;
+  const btn=e.submitter;
+  btn.disabled=true;
+  status('submitResult','제출 중...');
+  try {
+    const data=await post({action:'submitMission',token:studentToken,
+      mission:Number($('missionNum').value),url:$('makecodeUrl').value.trim()});
+    status('submitResult',data.message || '제출 실패',!!data.success);
+    if (data.success) {
+      $('makecodeUrl').value='';
+      await loadStudentStatus();
+      status('submitResult',data.message,true);
+    } else if (/만료/.test(data.message || '')) resetStudent();
+    else btn.disabled=false;
+  } catch(err) {
+    status('submitResult','제출 결과를 확인하지 못했습니다. 상태를 새로고침한 후 다시 시도해 주세요.',false);
+    console.error(err);
   }
 });
 
@@ -554,6 +562,7 @@ function addReviewButton(label, reviewAction) {
       if (result.success) {
         // 처리 후 서버에서 최신 목록 다시 조회
         await loadList();
+        await loadSnackList();
       } else {
         status(
           'listResult',
@@ -679,12 +688,6 @@ async function loadSnackList() {
     }
 
     snackStudents = (data.students || []).sort((a, b) => {
-      const aDone = a.snackStatus === '지급완료';
-      const bDone = b.snackStatus === '지급완료';
-
-      const aReady = a.mission3Approved && !aDone;
-      const bReady = b.mission3Approved && !bDone;
-
       const priority = s => {
         if (s.snackStatus === '지급완료') return 1;
         if (s.mission3Approved) return 0;
@@ -847,8 +850,6 @@ if (snackSearchInput && snackFilterSelect) {
 
 
 
-$('snackSearch').addEventListener('input', renderSnackList);
-$('snackFilter').addEventListener('change', renderSnackList);
 
 </script>
 </body>
