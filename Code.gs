@@ -91,7 +91,7 @@ function operate(db, user, action, args, runtime) {
 
 const headers = {
   학생명단:['학생ID','반','번호','이름','역할'],
-  도우미계정:['계정ID','담당 반','권한','솔트','비밀번호해시'],
+  도우미계정:['계정ID','담당반','사용여부','비밀번호해시','권한','솔트','비밀번호해시V2'],
   미션정보:['미션번호','미션제목','난이도','문제','성공조건','힌트1','힌트2','필요블록','이미지','사용여부'],
   미션진행:['학생ID','미션번호','시작시간','최종활동시간','진행상태'],
   미션제출:['제출ID','학생ID','미션번호','MakeCode URL','제출시간','검수상태','검수자','검수시간','최종수정시간','최종수정자','이전제출ID','검수이력JSON'],
@@ -171,11 +171,28 @@ function sameHash(a,b){
   for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);
   return diff===0;
 }
+function helperVersion(row){
+  if(!row||String(row.사용여부).trim()!=='Y'||(row.권한&&row.권한!=='helper'))return '';
+  return String(row.비밀번호해시V2||row.비밀번호해시||'').trim();
+}
+function helperPasswordMatches(row,password){
+  const stored=helperVersion(row);
+  if(!stored||typeof password!=='string'||password.length>128)return false;
+  if(row.비밀번호해시V2)return sameHash(passwordHash(password,row.솔트),stored);
+  const [salt,digest]=stored.split(':');
+  if(!salt||!/^[a-f0-9]{64}$/.test(digest||''))return false;
+  let value=salt+':'+password;
+  for(let i=0;i<1000;i++){
+    const bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,value,Utilities.Charset.UTF_8);
+    value=bytes.map(b=>('0'+(b&255).toString(16)).slice(-2)).join('');
+  }
+  return sameHash(value,digest);
+}
 function saveHelper(ss,id,room,password){
   if(!/^[a-zA-Z0-9_.-]{2,64}$/.test(id)||![1,2,3,4,5].includes(room)||typeof password!=='string'||password.length<12||password.length>128)throw new Error('계정 ID, 담당 반, 12~128자 비밀번호를 확인해 주세요.');
   const salt=randomKey();
-  const data=[id,room,'helper',salt,passwordHash(password,salt)];
   const existing=rows(ss,'도우미계정').find(r=>String(r.계정ID)===id);
+  const data=[id,room,'Y',existing?.비밀번호해시||'','helper',salt,passwordHash(password,salt)];
   if(!existing){append(ss,'도우미계정',data);return;}
   const sheet=ss.getSheetByName('도우미계정');
   const range=sheet.getRange(existing._row,1,1,sheet.getLastColumn());
@@ -228,10 +245,11 @@ function authenticate(ss,cache,a){
   let user;
   let version;
   if(role==='helper'){
-    const row=rows(ss,'도우미계정').find(r=>String(r.계정ID)===String(a.id||'').trim()&&String(r.권한)==='helper');
-    if(row && typeof a.password==='string' && a.password.length<=128 && sameHash(passwordHash(a.password,row.솔트),row.비밀번호해시)){
-      user={role,id:String(row.계정ID),room:normalizeNo(row['담당 반'])};
-      version=String(row.솔트);
+    const row=rows(ss,'도우미계정').find(r=>String(r.계정ID).trim()===String(a.id||'').trim());
+    const room=normalizeNo(row?.담당반);
+    if([1,2,3,4,5].includes(room)&&helperPasswordMatches(row,a.password)){
+      user={role,id:String(row.계정ID).trim(),room};
+      version=helperVersion(row);
     }
   } else if(role==='student'){
     const room=normalizeNo(a.room),number=normalizeNo(a.number);
@@ -265,11 +283,11 @@ function doPost(e){
     if(action==='logout'){cache.remove('sess:'+token);return response({ok:true,data:{}});}
     const helper=user.role==='helper';
     const db=snapshot(ss,user.room,helper?'':user.id,helper);
-    if(helper && !rows(ss,'도우미계정').some(r=>String(r.계정ID)===user.id&&String(r.솔트)===session.version&&normalizeNo(r['담당 반'])===user.room&&r.권한==='helper') || !helper && !db.students.length)
+    if(helper && !rows(ss,'도우미계정').some(r=>String(r.계정ID).trim()===user.id&&helperVersion(r)===session.version&&normalizeNo(r.담당반)===user.room) || !helper && !db.students.length)
       return response({ok:false,code:'SESSION',message:'계정 정보가 변경되었습니다. 다시 로그인해 주세요.'});
     if(action==='password'&&helper){
-      const row=rows(ss,'도우미계정').find(r=>String(r.계정ID)===user.id);
-      if(typeof args.old!=='string'||args.old.length>128||!sameHash(passwordHash(args.old,row.솔트),row.비밀번호해시))throw new Error('현재 비밀번호가 일치하지 않습니다.');
+      const row=rows(ss,'도우미계정').find(r=>String(r.계정ID).trim()===user.id);
+      if(!helperPasswordMatches(row,args.old))throw new Error('현재 비밀번호가 일치하지 않습니다.');
       saveHelper(ss,user.id,user.room,args.password);
       SpreadsheetApp.flush();
       cache.remove('sess:'+token);
