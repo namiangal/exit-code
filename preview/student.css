@@ -1,0 +1,97 @@
+.student-view {
+  background: radial-gradient(ellipse at 50% 14%, #167dbe 0%, #0a3d88 42%, #061d54 80%);
+  position: relative;
+}
+
+.student-view::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: clamp(56px, 10.25vw, 194px) 0 clamp(11px, 2.05vw, 38px);
+  background: url("assets/student-reference.png") center bottom / 100% auto no-repeat;
+  mask-image: linear-gradient(to right, #000, transparent 1.2%, transparent 98.8%, #000);
+}
+
+/* Show only the scenery along the bottom edge of the student's design reference. */
+.student-view::after {
+  height: clamp(11px, 2.05vw, 38px);
+  margin-top: 16px;
+  background: #0a3d88 url("assets/student-reference.png") center bottom / 100% auto no-repeat;
+}
+
+.student-view .stages {
+  grid-template-columns: repeat(4, minmax(0, 1fr) auto) minmax(0, 1fr);
+  align-items: stretch;
+  gap: clamp(3px, 0.65vw, 10px);
+  padding: clamp(6px, 1.3vw, 18px);
+  border: 1px solid #61ceff;
+  border-radius: 23px;
+  background: linear-gradient(165deg, #061c52, #104d94);
+}
+
+.student-view .stage-arrow {
+  align-self: center;
+  color: #e8f9ff;
+  font: bold clamp(1rem, 2.7vw, 2.1rem)/1 system-ui, sans-serif;
+}
+
+.student-view .stage.in-challenge {
+  background: linear-gradient(145deg, #263bd6, #7723cf);
+  border-color: #edb5ff;
+  color: #fff;
+}
+
+.student-view .stage.selected {
+  outline: 2px solid #e7b1ff;
+  outline-offset: 1px;
+}
+
+.student-view .submission-state {
+  margin: 9px 0 0;
+  color: #52678a;
+}
+
+.student-view .student-rewards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.student-view .reward-card {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  padding: 8px 3px;
+  border: 1px solid #b0c7ea;
+  border-radius: 12px;
+  background: linear-gradient(#f7faff, #e0ebfa);
+  color: #233c66;
+  text-align: center;
+  font-size: .875rem;
+}
+
+.student-view .reward-gift { font-size: 1.75rem; line-height: 1.25; }
+.student-view .reward-card.waiting .reward-gift { filter: grayscale(.8); opacity: .63; }
+.student-view .reward-card.eligible { border-color: #e8ae48; background: linear-gradient(#fff9dc, #ffe6a7); }
+.student-view .reward-card.paid { border-color: #77cd95; background: linear-gradient(#f5fff9, #c9f4d9); }
+.student-view .reward-card .pill { white-space: normal; font-size: .75rem; padding: 4px; }
+
+@media (min-width: 900px) and (max-width: 1150px) {
+  .student-view .student-grid { grid-template-columns: 1.25fr .8fr 1.1fr; }
+  .student-view .student-grid > .stack { grid-column: auto; grid-template-columns: minmax(0, 1fr); }
+  .student-view .student-grid .panel { padding: 13px; }
+}
+
+@media (min-width: 621px) and (max-width: 899px) {
+  .student-view .student-grid { grid-template-columns: 1.15fr 1fr; }
+  .student-view .stage { padding: 7px 3px; min-height: 116px; }
+  .student-view .stage .title { font-size: .78rem; overflow-wrap: anywhere; }
+}
+
+@media (max-width: 620px) {
+  .student-view .stages { padding: 7px 4px; gap: 3px; }
+}

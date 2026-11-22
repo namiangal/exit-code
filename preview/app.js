@@ -85,8 +85,8 @@ function login(){
     '<form data-form="login">'+(demo?'':role==='student'?'<label>반<select name="room" required>'+[1,2,3,4,5].map(n=>option(n,n+'반',1)).join('')+'</select></label><label>번호<input name="number" type="number" min="1" max="99" required></label><label>이름<input name="name" maxlength="30" autocomplete="name" required></label>':'<label>도우미 ID<input name="id" autocomplete="username" required></label><label>비밀번호<input type="password" name="password" autocomplete="current-password" required></label>')+
     '<button class="primary">'+(demo?'체험 시작':'로그인')+'</button></form></section>';
 }
-function identity(title,extra=''){
-  return '<div class="identity"><strong>'+html(title)+(demo?' · 체험':'')+'</strong>'+extra+'<div class="actions">'+cmd('↻ 새로고침','refresh')+cmd('로그아웃','logout')+'</div></div>';
+function identity(title,extra='',showRefresh=true){
+  return '<div class="identity"><strong>'+html(title)+(demo?' · 체험':'')+'</strong>'+extra+'<div class="actions">'+(showRefresh?cmd('↻ 새로고침','refresh'):'')+cmd('로그아웃','logout')+'</div></div>';
 }
 function student(){
   const view=data.views[0];
@@ -101,14 +101,16 @@ function student(){
   const art=/^https:\/\/[a-z0-9.-]+(?:\/|$)/i.test(m.image||'')?'<img width="100" height="100" style="object-fit:contain" src="'+html(m.image)+'" alt="">':'';
   const stageList=view.missions.map(item=>{
     const title=data.missions.find(x=>x.n===item.n)?.title||'미션 준비 중';
-    return '<button type="button" class="stage '+(item.n===activeMission?'selected ':'')+(item.state==='done'?'complete':'')+'" data-action="stage" data-value="'+item.n+'" aria-pressed="'+(item.n===activeMission)+'"><span class="glyph" aria-hidden="true">'+(item.state==='locked'?'🔒':item.state==='done'?'✅':glyphs[item.n-1])+'</span><strong>미션 '+item.n+'</strong><small class="title">'+html(title)+'</small>'+status(item.state)+'</button>';
-  }).join('');
-  return identity(person.room+'반 '+person.number+'번 '+person.name,'<span>전체 진행률 '+done+' / 5 &nbsp; '+bar(done*20)+'</span>')+
+    const stageClass=['stage',item.n===activeMission?'selected':'',item.state==='done'?'complete':'',['started','retrying'].includes(item.state)?'in-challenge':''].join(' ');
+    return '<button type="button" class="'+stageClass+'" data-action="stage" data-value="'+item.n+'" aria-pressed="'+(item.n===activeMission)+'"><span class="glyph" aria-hidden="true">'+(item.state==='locked'?'🔒':item.state==='done'?'✅':glyphs[item.n-1])+'</span><strong>미션 '+item.n+'</strong><small class="title">'+html(title)+'</small>'+status(item.state)+'</button>';
+  }).join('<span class="stage-arrow" aria-hidden="true">›</span>');
+  return identity(person.room+'반 '+person.number+'번 '+person.name,'<span>전체 진행률 '+done+' / 5 &nbsp; '+bar(done*20)+'</span>',false)+
     '<nav class="stages" aria-label="미션 선택">'+stageList+'</nav><div class="student-grid"><section class="panel"><div class="toolbar"><span class="pill mission-tag">미션 '+activeMission+'</span><span class="pill">'+html(m.level||states[current.state])+'</span></div><h1>'+html(m.title||'미션 준비 중')+'</h1>'+
     (locked?'<p>🔒 '+(activeMission===4?'미션 1·2·3 승인을 모두 받으면 열립니다.':activeMission===5?'미션 4를 승인받으면 열립니다.':'현재 사용할 수 없는 미션입니다.')+'</p>':ready?'<p>도전을 시작하면 문제와 힌트를 볼 수 있어요.</p>'+cmd('도전 시작','start',activeMission,'primary'):art+'<p class="narrative">'+html(m.problem)+'</p><div class="conditions"><h3>◎ 성공 조건</h3>'+html(m.conditions)+'</div><p class="muted">필요 블록 · '+html(m.blocks)+'</p><a class="button primary" target="_blank" rel="noopener noreferrer" href="https://makecode.microbit.org/">MakeCode 열기</a>')+
     '</section><section class="panel"><h2>💡 힌트</h2>'+(locked||ready?'<p class="muted">도전 중인 미션에서 힌트를 볼 수 있어요.</p>':'<details class="hint" id="hint1"><summary>힌트 1</summary><p>'+html(m.hint1)+'</p></details><details class="hint" id="hint2" hidden><summary>힌트 2</summary><p>'+html(m.hint2)+'</p></details>')+
-    '</section><div class="stack"><section class="panel"><h2>🔗 코드 제출</h2>'+(canSubmit?'<form class="stack" data-form="submit"><label>MakeCode 공유 URL<input type="url" name="url" required placeholder="https://makecode.microbit.org/…"></label><button class="primary">제출하기</button></form>':'<p>'+status(current.state)+'</p>')+
-    (current.record?'<div>'+share(current.record)+'</div>':'')+'</section><section class="panel"><h2>🎁 내 간식 현황</h2>'+snacks(view,false)+'</section></div></div>';
+    '</section><div class="stack"><section class="panel"><h2>🔗 코드 제출</h2><form class="stack submission" data-form="submit"><label>MakeCode 공유 URL<input type="url" name="url" required placeholder="https://makecode.microbit.org/…" '+(canSubmit?'':'disabled')+'></label><button class="primary" '+(canSubmit?'':'disabled')+'>제출하기</button></form>'+
+    (!canSubmit?'<p class="submission-state">'+(ready?'도전 시작 후 제출할 수 있어요.':status(current.state))+'</p>':'')+
+    (current.record?'<div>'+share(current.record)+'</div>':'')+'</section><section class="panel"><h2>🎁 내 간식 현황</h2><ul class="student-rewards">'+view.snacks.map(s=>'<li class="reward-card '+html(s.state)+'"><span class="reward-gift" aria-hidden="true">🎁</span><strong>'+s.n+'차 간식</strong>'+status(s.state)+'</li>').join('')+'</ul></section></div></div>';
 }
 function snacks(view,interactive){
   return '<div class="snacks">'+view.snacks.map(s=>'<div class="snack"><span>'+s.n+'차 간식</span>'+status(s.state)+(interactive&&s.state!=='waiting'?cmd(s.state==='paid'?'지급 취소':'지급 완료','snack',JSON.stringify([view.person.id,s.n,s.state==='paid']),s.state==='paid'?'danger':'approve'):'')+'</div>').join('')+'</div>';
@@ -189,6 +191,7 @@ function render(preserve=false){
   const second=preserve&&$('#hint2')?.open;
   const unlocked=preserve&&$('#hint2')?.hidden===false;
   document.body.classList.toggle('helper',(session?.user?.role||role)==='helper');
+  document.body.classList.toggle('student-view',Boolean(data&&session?.user.role==='student'));
   root.innerHTML=!session?login():!data?'<p class="panel">불러오는 중… '+cmd('다시 불러오기','refresh')+' '+cmd('로그아웃','logout')+'</p>':session.user.role==='helper'?helper():student();
   if(hadFocus&&$('#search')){$('#search').focus();$('#search').setSelectionRange(cursor,cursor);}
   if($('#hint1'))$('#hint1').open=Boolean(opened);
