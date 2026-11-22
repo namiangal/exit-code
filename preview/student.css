@@ -36,14 +36,23 @@
 }
 
 .student-view .stage.in-challenge {
-  background: linear-gradient(145deg, #263bd6, #7723cf);
-  border-color: #edb5ff;
-  color: #fff;
+  background: linear-gradient(145deg, #fff3a6, #ffb127);
+  border-color: #ffdc55;
+  color: #422208;
+}
+
+.student-view .stage.in-challenge .pill {
+  background: #532706;
+  color: #fff4d0;
 }
 
 .student-view .stage.selected {
   outline: 2px solid #e7b1ff;
   outline-offset: 1px;
+}
+
+.student-view .stage.in-challenge.selected {
+  outline-color: #fff0a5;
 }
 
 .student-view .submission-state {
