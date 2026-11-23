@@ -2,6 +2,8 @@ const root=document.querySelector('#app');
 const api=window.EXIT_CODE_API;
 const demo=!api;
 const menus=['제출 검수','반별 현황','간식 지급 관리','학생 목록','미션 관리','설정'];
+const missionManagementPage=4;
+const canOpenHelperPage=(user,index)=>Number.isInteger(index)&&index>=0&&index<menus.length&&(index!==missionManagementPage||user?.id==='helper13');
 const icons=['▣','▥','🎁','♟','📖','⚙'];
 const glyphs=['🔑','🎲','⚡','⏱','🔐'];
 const snackLabels={waiting:'조건 미충족',eligible:'지급 가능',paid:'지급 완료'};
@@ -160,6 +162,7 @@ function latestActivity(v){
   return clock([...v.missions.flatMap(m=>[m.started,m.record?.time,m.record?.reviewed])].filter(Boolean).sort().at(-1));
 }
 function helper(){
+  if(!canOpenHelperPage(data.user,page))page=0;
   const all=[...data.views].sort(byNumber);
   const count=s=>all.reduce((sum,v)=>sum+v.missions.filter(m=>m.state===s).length,0);
   const done=count('done'),paid=all.reduce((sum,v)=>sum+v.snacks.filter(s=>s.state==='paid').length,0);
@@ -176,7 +179,7 @@ function helper(){
   ];
   const v=all.find(x=>x.person.id===focusStudent);
   return identity(data.user.room+'반 · '+data.user.id,'<label class="inline"><input type="checkbox" id="auto" '+(auto?'checked':'')+'>자동 갱신 (30초)</label>')+
-    '<div class="dashboard"><nav class="sidebar" aria-label="도우미 메뉴"><h2>코딩 도우미</h2>'+menus.map((n,i)=>cmd(icons[i]+' '+n,'menu',i,page===i?'active':'')).join('')+'</nav><section class="panel"><div class="section-title"><h2>'+menus[page]+'</h2></div><div class="stats">'+stats+'</div>'+pages[page]()+'</section></div>'+
+    '<div class="dashboard"><nav class="sidebar" aria-label="도우미 메뉴"><h2>코딩 도우미</h2>'+menus.map((n,i)=>canOpenHelperPage(data.user,i)?cmd(icons[i]+' '+n,'menu',i,page===i?'active':''):'').join('')+'</nav><section class="panel"><div class="section-title"><h2>'+menus[page]+'</h2></div><div class="stats">'+stats+'</div>'+pages[page]()+'</section></div>'+
     (v?'<dialog id="student-detail"><div class="section-title"><h2>'+v.person.room+'반 '+v.person.number+'번 '+html(v.person.name)+'</h2>'+cmd('닫기','close')+'</div>'+
     table(['미션','상태','시작 시간','제출 시간','공유 링크','검수'],v.missions.map(m=>row([m.n,status(m.state),clock(m.started),clock(m.record?.time),share(m.record),reviewButtons(m)])))+
     '<h3>제출 및 검수 기록</h3>'+table(['미션','제출 시간','코드','검수 결과','검수자','검수 시간'],[...v.records].reverse().map(r=>row([r.n,clock(r.time),share(r),status(r.state),html(r.actor||'—'),clock(r.reviewed)])))+
@@ -220,7 +223,11 @@ root.addEventListener('click',e=>{
   if(!item)return;
   const {action,value}=item.dataset;
   const local={
-    role:()=>{role=value;},stage:()=>{activeMission=Number(value);},menu:()=>{page=Number(value);filter='all';search='';},
+    role:()=>{role=value;},stage:()=>{activeMission=Number(value);},menu:()=>{
+      const next=Number(value);
+      if(!canOpenHelperPage(data?.user,next))return;
+      page=next;filter='all';search='';
+    },
     detail:()=>{focusStudent=value;},close:()=>{focusStudent='';},sort:()=>{sort=value;},
     missionFilter:()=>{missionFilter=value;},inspect:()=>{page=0;missionFilter=value;filter='all';search='';}
   };
