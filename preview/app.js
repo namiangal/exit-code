@@ -22,6 +22,7 @@ const bar=p=>'<progress max="100" value="'+p+'" aria-label="진행률 '+p+'%"></
 const byNumber=(a,b)=>a.person.number-b.person.number;
 let role='student',session=JSON.parse(sessionStorage.getItem('exit-session')||'null');
 let page=0, activeMission=3, focusStudent='', data, busy=false, refreshVersion=0, auto=false;
+let syncTimer, syncing=false;
 let search='',filter='all',sort='number',missionFilter='all';
 const chosen=new Set();
 let noticeTimer;
@@ -47,6 +48,7 @@ function demoDb(){
   return {students,submissions,progress,missions:defaultMissions(),snacks:[{student:students[5].id,n:1,state:'paid'}]};
 }
 async function call(action,args={}){
+  const requestSession=session;
   if(demo){
     const key='exit-demo';
     const db=JSON.parse(localStorage.getItem(key)||'null')||demoDb();
@@ -59,27 +61,52 @@ async function call(action,args={}){
     const runtime={now:new Date().toISOString(),id:()=>crypto.randomUUID(),add:(type,r)=>db[type].push(r),review:(r,state,actor,reviewed)=>Object.assign(r,{state,actor,reviewed})};
     const result=operate(db,session.user,action,args,runtime);
     if(action!=='view')localStorage.setItem(key,JSON.stringify(db));
-    return result;
+    return args.includeView===true?{...result,view:operate(db,session.user,'view',{},runtime)}:result;
   }
   let res;
   try{
-    const response=await fetch(api,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify({action,args,token:session?.token}),credentials:'omit',signal:AbortSignal.timeout(35000),redirect:'follow'});
+    const response=await fetch(api,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify({action,args,token:requestSession?.token}),credentials:'omit',signal:AbortSignal.timeout(35000),redirect:'follow'});
     res=await response.json();
   }catch{throw new Error('연결하지 못했습니다. 인터넷 연결과 웹앱 배포 주소를 확인해 주세요.');}
-  if(res.code==='SESSION'){endSession();throw new Error(res.message);}
+  if(res.code==='SESSION'){if(session===requestSession)endSession();throw new Error(res.message);}
   if(!res.ok)throw new Error(res.message||'요청을 처리하지 못했습니다.');
   return res.data;
 }
 function endSession(){
   session=null;data=null;auto=false;chosen.clear();focusStudent='';
+  clearTimeout(syncTimer);
   sessionStorage.removeItem('exit-session');render();
 }
-async function refresh(repaint=true){
+async function refresh({background=false,repaint=true}={}){
   if(!session)return;
   const version=++refreshVersion;
   const currentSession=session;
   const next=await call('view');
-  if(session===currentSession&&version===refreshVersion){data=next;if(repaint)render(true);}
+  if(session!==currentSession||version!==refreshVersion||(background&&busy))return;
+  const previous=data;
+  data=next;
+  if(repaint&&(!background||JSON.stringify(previous)!==JSON.stringify(next)))render(true);
+  if(background&&currentSession.user.role==='student'){
+    const before=previous?.views[0]?.missions;
+    const updates=next.views[0]?.missions.filter((m,i)=>before?.[i]&&before[i].state!==m.state&&['done','retrying'].includes(m.state));
+    if(updates?.length)notify(updates.map(m=>'미션 '+m.n+' · '+states[m.state]).join('\n'));
+  }
+}
+function scheduleSync(delay){
+  clearTimeout(syncTimer);
+  if(document.hidden||!session||(session.user.role==='helper'&&!auto))return;
+  const pending=data?.views[0]?.missions.some(m=>m.state==='pending');
+  syncTimer=setTimeout(sync,delay??(session.user.role==='helper'?30000:pending?3000:20000));
+}
+async function sync(){
+  if(document.hidden||!session)return;
+  if(busy||syncing){scheduleSync(1000);return;}
+  if(session.user.role==='helper'&&(!auto||focusStudent||root.querySelector('form :focus'))){scheduleSync();return;}
+  syncing=true;
+  let retry;
+  try{await refresh({background:true});}
+  catch(error){if(!session)notify(error.message);retry=30000;}
+  finally{syncing=false;scheduleSync(retry);}
 }
 function login(){
   return '<section class="login"><h1>코딩 미션 챌린지</h1><div class="toolbar">'+cmd('🎮 학생 모드','role','student',role==='student'?'active':'')+cmd('🛡 코딩 도우미','role','helper',role==='helper'?'active':'')+'</div>'+
@@ -141,10 +168,10 @@ function reviewPage(all){
   return '<div class="toolbar"><strong>미션</strong>'+['all',1,2,3,4,5].map(n=>cmd(n==='all'?'전체':'미션 '+n,'missionFilter',n,String(missionFilter)===String(n)?'active':'')).join('')+'</div>'+
     '<div class="toolbar">'+[['number','번호순'],['mission','미션순'],['review','검수순'],['recent','최근 제출순']].map(([v,t])=>cmd(t,'sort',v,sort===v?'active':'')).join('')+'</div>'+
     '<div class="toolbar"><label class="inline">상태 <select id="filter">'+option('all','전체',filter)+Object.entries(states).map(([v,t])=>option(v,t,filter)).join('')+'</select></label>'+searchBox()+'</div>'+
-    table(['<input type="checkbox" id="selectAll" aria-label="표시된 대기 항목 모두 선택" '+(visible.length&&visible.every(v=>chosen.has(v.m.record.id))?'checked':'')+(!visible.length?' disabled':'')+'>','번호','이름','미션','제출한 코드 (MakeCode URL)','제출 시간','상태','검수 처리','간식 지급'],rows.map(v=>row([
+    '<div class="review-list">'+table(['<input type="checkbox" id="selectAll" aria-label="표시된 대기 항목 모두 선택" '+(visible.length&&visible.every(v=>chosen.has(v.m.record.id))?'checked':'')+(!visible.length?' disabled':'')+'>','번호','이름','미션','제출한 코드 (MakeCode URL)','제출 시간','상태','검수 처리','간식 지급'],rows.map(v=>row([
       v.m.state==='pending'&&v.m.record?'<input type="checkbox" data-select="'+html(v.m.record.id)+'" aria-label="'+html(v.person.name)+' 제출 선택" '+(chosen.has(v.m.record.id)?'checked':'')+'>':'—',
-      v.person.number,cmd(v.person.name,'detail',v.person.id),'<span class="pill mission-tag">미션 '+v.m.n+'</span>',share(v.m.record),clock(v.m.record?.time),status(v.m.state),reviewButtons(v.m),v.snacks.filter(s=>s.state==='paid').length+' / 3'
-    ])))+'<div class="section-title"><div class="actions">선택 '+chosen.size+'건 '+cmd('✓ 선택 승인','bulk','done','approve',!chosen.size)+cmd('↻ 선택 재도전','bulk','retrying','retry',!chosen.size)+'</div><span>'+rows.length+'명 표시</span></div>';
+      v.person.number,cmd(v.person.name,'detail',v.person.id),'<span class="pill mission-tag mission-'+v.m.n+'">미션 '+v.m.n+'</span>',share(v.m.record),clock(v.m.record?.time),status(v.m.state),reviewButtons(v.m),v.snacks.filter(s=>s.state==='paid').length+' / 3'
+    ])))+'</div><div class="section-title"><div class="actions">선택 '+chosen.size+'건 '+cmd('✓ 선택 승인','bulk','done','approve',!chosen.size)+cmd('↻ 선택 재도전','bulk','retrying','retry',!chosen.size)+'</div><span>'+rows.length+'명 표시</span></div>';
 }
 function searchBox(){return '<label class="inline">학생 검색 <input id="search" type="search" placeholder="번호 또는 이름" value="'+html(search)+'"></label>';}
 function matches(v){return String(v.person.number).includes(search.trim())||v.person.name.includes(search.trim());}
@@ -193,10 +220,19 @@ function render(preserve=false){
   const opened=preserve&&$('#hint1')?.open;
   const second=preserve&&$('#hint2')?.open;
   const unlocked=preserve&&$('#hint2')?.hidden===false;
+  const url=preserve&&$('.submission input');
+  const urlWasFocused=url&&document.activeElement===url;
+  const stage=preserve&&document.activeElement?.closest('.stage');
   document.body.classList.toggle('helper',(session?.user?.role||role)==='helper');
   document.body.classList.toggle('student-view',Boolean(data&&session?.user.role==='student'));
   root.innerHTML=!session?login():!data?'<p class="panel">불러오는 중… '+cmd('다시 불러오기','refresh')+' '+cmd('로그아웃','logout')+'</p>':session.user.role==='helper'?helper():student();
   if(hadFocus&&$('#search')){$('#search').focus();$('#search').setSelectionRange(cursor,cursor);}
+  const nextUrl=$('.submission input');
+  if(url&&nextUrl&&!nextUrl.disabled){
+    nextUrl.value=url.value;
+    if(urlWasFocused)nextUrl.focus({preventScroll:true});
+  }
+  if(stage)root.querySelector('.stage[data-value="'+stage.dataset.value+'"]')?.focus({preventScroll:true});
   if($('#hint1'))$('#hint1').open=Boolean(opened);
   if($('#hint2')){$('#hint2').hidden=!unlocked;$('#hint2').open=Boolean(second);}
   $('#hint1')?.addEventListener('toggle',e=>{if(e.target.open&&$('#hint2'))$('#hint2').hidden=false;});
@@ -206,17 +242,30 @@ function render(preserve=false){
 async function task(fn){
   if(busy)return;
   busy=true;
-  try{await fn();}catch(error){notify(error.message);}finally{busy=false;}
+  try{await fn();}catch(error){notify(error.message);}finally{busy=false;scheduleSync();}
 }
 async function save(action,args){
-  const result=await call(action,args);
-  await refresh();
+  const currentSession=session;
+  const result=await call(action,{...args,includeView:true});
+  if(session!==currentSession)return;
+  const input=$('.submission input');
+  if(action==='submit'&&input&&activeMission===args.n)input.value='';
+  let refreshFailed=false;
+  if(result.view){
+    ++refreshVersion;
+    data=result.view;
+    render(true);
+  }else{
+    try{await refresh();}
+    catch(error){if(session!==currentSession)throw error;refreshFailed=true;}
+  }
+  const suffix=refreshFailed?' 화면 갱신에 실패했습니다. 잠시 뒤 다시 확인해 주세요.':'';
   if(result.results){
     const failed=result.results.filter(r=>!r.ok);
-    notify('처리 '+(result.results.length-failed.length)+'건 · 실패 '+failed.length+'건'+(failed.length?'\n'+[...new Set(failed.map(r=>r.message))].join('\n'):''));
+    notify('처리 '+(result.results.length-failed.length)+'건 · 실패 '+failed.length+'건'+suffix+(failed.length?'\n'+[...new Set(failed.map(r=>r.message))].join('\n'):''));
     return;
   }
-  notify(action==='submit'?'코드를 제출했습니다. 도우미 검수를 기다려 주세요.':'저장했습니다.');
+  notify((action==='submit'?'코드를 제출했습니다. 도우미 검수를 기다려 주세요.':'저장했습니다.')+suffix);
 }
 root.addEventListener('click',e=>{
   const item=e.target.closest('button[data-action]');
@@ -254,7 +303,7 @@ root.addEventListener('click',e=>{
 root.addEventListener('input',e=>{if(e.target.id==='search'){search=e.target.value;render();}});
 root.addEventListener('change',e=>{
   const t=e.target;
-  if(t.id==='auto'){auto=t.checked;return;}
+  if(t.id==='auto'){auto=t.checked;scheduleSync();return;}
   if(t.id==='filter')filter=t.value;
   else if(t.id==='selectAll')root.querySelectorAll('[data-select]').forEach(x=>t.checked?chosen.add(x.dataset.select):chosen.delete(x.dataset.select));
   else if(t.dataset.select)t.checked?chosen.add(t.dataset.select):chosen.delete(t.dataset.select);
@@ -273,7 +322,7 @@ root.addEventListener('submit',e=>{
         sessionStorage.setItem('exit-session',JSON.stringify(session));
         page=0;search='';filter='all';sort='number';missionFilter='all';
         render();
-        await refresh();
+        await refresh({repaint:false});
         activeMission=demo?3:(data?.views[0]?.missions.find(m=>m.state==='started')?.n||1);
         render();
       }
@@ -282,7 +331,9 @@ root.addEventListener('submit',e=>{
     }finally{button.disabled=false;}
   });
 });
-setInterval(()=>{if(auto&&!busy&&!document.hidden&&!focusStudent&&!root.querySelector('form :focus'))refresh().catch(e=>notify(e.message));},30000);
+document.addEventListener('visibilitychange',()=>scheduleSync(0));
+window.addEventListener('online',()=>scheduleSync(0));
+if(demo)window.addEventListener('storage',e=>{if(e.key==='exit-demo'&&session?.user.role==='student')scheduleSync(0);});
 render();
-if(session)refresh().catch(e=>notify(e.message));
+if(session)task(()=>refresh());
 

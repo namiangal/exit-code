@@ -8,3 +8,16 @@ input:not([type=checkbox]),select{min-width:0;max-width:100%;color:#14244d;backg
 .table-wrap{overflow:auto;border:1px solid #b9d1ff;border-radius:13px;background:white;margin:9px 0 12px}table{border-collapse:collapse;width:100%;text-align:left;font-size:.875rem}th,td{padding:8px;border-bottom:1px solid #d5e2ff;white-space:nowrap}th{background:#dce9ff}tbody tr:nth-child(even){background:#f1f7ff}td button{font-size:.875rem;min-height:34px;padding:5px 8px}.table-link{display:block;color:#1646b3;max-width:150px;overflow:hidden;text-overflow:ellipsis}.mission-tag{background:#e9deff;color:#4a1da0}.snacks{display:grid;gap:7px}.snack{display:flex;align-items:center;justify-content:space-between;gap:4px}dialog{border:2px solid #79b8ff;border-radius:18px;padding:17px;width:min(94vw,950px);max-height:88vh;color:#14244d;background:#f5faff}dialog::backdrop{background:#04113cad}#notice{position:fixed;right:14px;bottom:14px;max-width:min(440px,calc(100% - 28px));padding:12px;border-radius:12px;color:white;background:#15295e;z-index:5;white-space:pre-line}#notice:empty{display:none}
 @media(max-width:970px){.student-grid{grid-template-columns:1fr 1fr}.student-grid>.stack{grid-column:1/-1;grid-template-columns:1fr 1fr}.dashboard{grid-template-columns:1fr}.sidebar{display:flex;flex-wrap:wrap}.sidebar h2{width:100%;margin:0}}
 @media(max-width:620px){.hero{background-size:100% 100%;height:clamp(56px,12vw,96px)}.stages{gap:4px}.stage{padding:5px 2px;min-height:102px}.stage strong,.stage small,.stage .pill{font-size:.7rem}.stage .title{display:none}.student-grid,.student-grid>.stack{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.panel{padding:12px}}
+
+.review-list .mission-tag { color: #fff; font-weight: 700; }
+.review-list .mission-1 { background: #485463; }
+.review-list .mission-2 { background: #087467; }
+.review-list .mission-3 { background: #214fbc; }
+.review-list .mission-4 { background: #652a9b; }
+.review-list .mission-5 { background: #a01442; }
+.review-list .pill.locked { background: #edf0f4; color: #374357; }
+.review-list .pill.ready { background: #f3eee4; color: #564826; }
+.review-list .pill.started { background: #e5f1fa; color: #164a73; }
+.review-list .pill.pending { background: #eee8f7; color: #54317d; }
+.review-list .pill.retrying { background: #faebdf; color: #803717; }
+.review-list .pill.done { background: #e4f2e8; color: #20573a; }
