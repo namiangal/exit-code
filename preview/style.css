@@ -102,4 +102,9 @@ input:not([type=checkbox]),select{min-width:0;max-width:100%;color:#14244d;backg
 }
 #review-result.student-review form { display: flex; justify-content: center; }
 #review-result.student-review form button { min-width: 96px; }
+#review-result.escape-result form { display: flex; justify-content: center; }
 #escape-art:not([hidden]) { display: block; width: 100%; height: auto; max-height: min(45vh, 45dvh); object-fit: contain; border-radius: 12px; margin: 0 0 12px; }
+.room-progress { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.room-progress progress { width: clamp(90px, 18vw, 180px); }
+.dashboard .stats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 110px), 1fr)); }
+.dashboard .stat { flex-direction: column; align-items: flex-start; gap: 0; text-align: left; }
