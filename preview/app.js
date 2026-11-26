@@ -96,9 +96,17 @@ function showMessage(title,messages,celebrate=false){
   const message=$('#review-message');
   const append=dialog.open&&$('#review-title').textContent===title;
   $('#review-title').textContent=title;
+  dialog.classList.toggle('escape-result',celebrate);
   if(celebrate&&!$('#escape-art').hasAttribute('src'))$('#escape-art').src='assets/escape-success.png';
   $('#escape-art').hidden=!celebrate;
-  message.textContent=[append?message.textContent:'',...messages].filter(Boolean).join('\n');
+  if(!append)message.replaceChildren();
+  for(const text of messages){
+    const line=document.createElement('p');
+    const reward=typeof text==='object'?text.reward:null;
+    if(reward)line.className='review-reward reward-'+reward;
+    line.textContent=reward?reward+'차 간식을 받을 수 있어요.':text;
+    message.append(line);
+  }
   if(!dialog.open)dialog.showModal();
 }
 function onSubmissions(submissions){
@@ -133,7 +141,7 @@ async function refresh({background=false,repaint=true,reviewCheck=false}={}){
       unlocked.forEach(m=>announcedStages.add(m.n));
       const rewards=next.views[0].snacks.filter((s,i)=>previous.views[0].snacks[i]?.state!=='eligible'&&s.state==='eligible');
       messages.push(...unlocked.map(m=>'미션 '+m.n+'에 도전할 수 있어요.'));
-      messages.push(...rewards.map(s=>s.n+'차 간식을 받을 수 있어요.'));
+      messages.push(...rewards.map(s=>({reward:s.n})));
       if(escape)messages.unshift('미션 5단계를 모두 완료했어요. 탈출 성공을 축하합니다!');
       showMessage(escape?'탈출 성공!':'미션 검수 결과',messages,escape);
     }

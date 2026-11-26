@@ -63,4 +63,22 @@ input:not([type=checkbox]),select{min-width:0;max-width:100%;color:#14244d;backg
   .student-view .student-grid, .student-view .student-grid > .stack { grid-template-columns: minmax(0, 1fr); }
   input:not([type=checkbox]), select { font-size: 16px; }
 }
-#escape-art { width: min(100%, 640px); height: auto; border-radius: 12px; margin: 0 0 12px; }
+#review-result {
+  --result-padding: clamp(14px, 3vw, 22px);
+  width: fit-content;
+  max-width: min(38rem, calc(100vw - 24px));
+  max-height: min(88vh, 88dvh);
+  padding: var(--result-padding);
+  overflow: auto;
+}
+#review-result.escape-result {
+  width: min(34rem, calc(100vw - 24px));
+  width: min(34rem, calc(100vw - 24px), calc(67.5dvh + var(--result-padding) + var(--result-padding) + 4px));
+}
+#review-message { display: grid; gap: 8px; margin: 0 0 14px; overflow-wrap: anywhere; }
+#review-message p { margin: 0; }
+#review-message .review-reward { width: fit-content; padding: 5px 10px; border-radius: 8px; font-weight: 800; }
+#review-message .reward-1 { background: #ffebbc; color: #783800; }
+#review-message .reward-2 { background: #d8f8e8; color: #075a41; }
+#review-message .reward-3 { background: #e9deff; color: #50268b; }
+#escape-art:not([hidden]) { display: block; width: 100%; height: auto; max-height: min(45vh, 45dvh); object-fit: contain; border-radius: 12px; margin: 0 0 12px; }
