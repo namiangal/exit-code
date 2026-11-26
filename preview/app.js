@@ -247,8 +247,10 @@ function reviewPage(all){
   const rank={pending:0,retrying:1,started:2,ready:3,done:4,locked:5};
   const rows=all.map(v=>{
     const fallback=miss=>miss.find(m=>m.state==='pending')||miss.find(m=>m.state==='retrying')||miss.find(m=>m.state==='started')||miss.find(m=>m.state==='ready')||[...miss].reverse().find(m=>m.state==='done')||miss[0];
-    return {...v,m:missionFilter==='all'?fallback(v.missions):v.missions[Number(missionFilter)-1]};
-  }).filter(v=>(filter==='all'||v.m.state===filter)&&matches(v));
+    const mission=missionFilter==='all'?(openStat&&openStat!=='paid'?statItems(v,openStat)[0]:fallback(v.missions))
+      :v.missions[Number(missionFilter)-1];
+    return {...v,m:mission};
+  }).filter(v=>v.m&&(!openStat||openStat==='paid'||v.m.state===openStat)&&(filter==='all'||v.m.state===filter)&&matches(v));
   rows.sort((a,b)=>({
     mission:()=>a.m.n-b.m.n,
     review:()=>rank[a.m.state]-rank[b.m.state]||String(a.m.record?.time||'').localeCompare(b.m.record?.time||''),
@@ -285,22 +287,20 @@ function latestActivity(v){
 function statItems(view,state){
   return (state==='paid'?view.snacks:view.missions).filter(item=>item.state===state);
 }
-function statDialog(all){
-  if(!helperStats[openStat])return '';
-  const rows=all.flatMap(v=>{
+function statRoster(all){
+  const rows=all.filter(matches).map(v=>{
     const items=statItems(v,openStat);
-    if(!items.length)return [];
-    return [row([v.person.room,v.person.number,html(v.person.name),items.map(item=>openStat==='paid'?item.n+'차 간식':'미션 '+item.n).join(' · ')])];
+    return row([v.person.room,v.person.number,cmd(v.person.name,'detail',v.person.id),items.map(item=>openStat==='paid'?item.n+'차 간식':'미션 '+item.n).join(' · ')]);
   });
-  return '<dialog id="stat-detail" aria-labelledby="stat-title"><div class="section-title"><h2 id="stat-title">'+helperStats[openStat]+' 학생 · '+rows.length+'명</h2>'+cmd('닫기','closeStat')+'</div>'+
-    table(['반','번호','이름',openStat==='paid'?'지급 간식':'해당 미션'],rows)+'</dialog>';
+  return searchBox()+table(['반','번호','이름',openStat==='paid'?'지급 간식':'해당 미션'],rows);
 }
 function helper(){
   if(!canOpenHelperPage(data.user,page))page=0;
-  const all=[...data.views].sort(byNumber);
-  const count=state=>all.reduce((sum,v)=>sum+statItems(v,state).length,0);
-  const pct=percentage(count('done'),all.length*5);
-  const stats=Object.entries(helperStats).map(([state,label])=>'<button type="button" class="stat" data-action="stat" data-value="'+state+'" aria-haspopup="dialog">'+label+'<strong>'+count(state)+'</strong></button>').join('');
+  const roster=[...data.views].sort(byNumber);
+  const all=openStat?roster.filter(v=>statItems(v,openStat).length):roster;
+  const count=state=>roster.reduce((sum,v)=>sum+statItems(v,state).length,0);
+  const pct=percentage(count('done'),roster.length*5);
+  const stats=Object.entries(helperStats).map(([state,label])=>'<button type="button" class="stat" data-action="stat" data-value="'+state+'" aria-pressed="'+(openStat===state)+'">'+label+'<strong>'+count(state)+'</strong></button>').join('');
   const pages=[
     ()=>reviewPage(all),
     ()=>summary(all),
@@ -310,9 +310,10 @@ function helper(){
     ()=>data.missions.map(m=>'<details class="hint"><summary>미션 '+m.n+' · '+html(m.title)+' · '+(m.enabled?'사용':'미사용')+'</summary><p>'+html(m.level)+' · '+html(m.problem)+'</p><p>'+html(m.conditions)+'</p><p>힌트 1 · '+html(m.hint1)+'</p><p>힌트 2 · '+html(m.hint2)+'</p><p>필요 블록 · '+html(m.blocks)+'</p></details>').join(''),
     ()=>'<p>'+html(session.user.id)+' · '+(session.user.allRooms?'전체 반':session.user.room+'반')+'</p><p>세션이 만료되면 다시 로그인해 주세요.</p><form class="stack" data-form="password"><label>현재 비밀번호<input name="old" type="password" maxlength="128" autocomplete="current-password" required></label><label>새 비밀번호<input name="password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label><button class="primary">비밀번호 변경</button></form>'
   ];
-  const v=all.find(x=>x.person.id===focusStudent);
+  const v=roster.find(x=>x.person.id===focusStudent);
+  const content=openStat&&![0,2,3].includes(page)?statRoster(all):pages[page]();
   return identity((data.user.allRooms?'전체 반':data.user.room+'반')+' · '+data.user.id,'<span class="room-progress">반 진행률 '+pct+'% '+bar(pct)+'</span>')+
-    '<div class="dashboard"><nav class="sidebar" aria-label="도우미 메뉴"><h2>코딩 도우미</h2>'+menus.map((n,i)=>canOpenHelperPage(data.user,i)?cmd(icons[i]+' '+n,'menu',i,page===i?'active':''):'').join('')+'</nav><section class="panel"><div class="section-title"><h2>'+menus[page]+'</h2></div><div class="stats">'+stats+'</div>'+pages[page]()+'</section></div>'+statDialog(all)+
+    '<div class="dashboard"><nav class="sidebar" aria-label="도우미 메뉴"><h2>코딩 도우미</h2>'+menus.map((n,i)=>canOpenHelperPage(data.user,i)?cmd(icons[i]+' '+n,'menu',i,page===i?'active':''):'').join('')+'</nav><section class="panel"><div class="section-title"><h2>'+menus[page]+'</h2></div><div class="stats">'+stats+'</div>'+content+'</section></div>'+
     (v?'<dialog id="student-detail"><div class="section-title"><h2>'+v.person.room+'반 '+v.person.number+'번 '+html(v.person.name)+'</h2>'+cmd('닫기','close')+'</div>'+
     table(['미션','상태','시작 시간','제출 시간','공유 링크','검수'],v.missions.map(m=>row([m.n,status(m.state),clock(m.started),clock(m.record?.time),share(m.record),reviewButtons(m)])))+
     '<h3>제출 및 검수 기록</h3>'+table(['미션','제출 시간','코드','검수 결과','검수자','검수 시간'],[...v.records].reverse().map(r=>row([r.n,clock(r.time),share(r),status(r.state),html(r.actor||'—'),clock(r.reviewed)])))+
@@ -348,8 +349,6 @@ function render(preserve=false){
   $('#hint2')?.addEventListener('toggle',e=>{if(e.target.open&&$('#hint3'))$('#hint3').hidden=false;});
   const dialog=$('#student-detail');
   if(dialog){dialog.showModal();dialog.addEventListener('cancel',()=>{focusStudent='';});}
-  const stat=$('#stat-detail');
-  if(stat){stat.showModal();stat.addEventListener('cancel',()=>{openStat='';});}
 }
 async function task(fn){
   if(busy)return;
@@ -388,10 +387,10 @@ root.addEventListener('click',e=>{
     role:()=>{role=value;},stage:()=>{activeMission=Number(value);},menu:()=>{
       const next=Number(value);
       if(!canOpenHelperPage(data?.user,next))return;
-      page=next;filter='all';search='';
+      page=next;filter='all';search='';openStat='';
     },
     detail:()=>{focusStudent=value;},close:()=>{focusStudent='';},sort:()=>{sort=value;},
-    stat:()=>{openStat=value;},closeStat:()=>{openStat='';},
+    stat:()=>{openStat=openStat===value?'':value;filter='all';missionFilter='all';},
     missionFilter:()=>{missionFilter=value;},inspect:()=>{page=0;missionFilter=value;filter='all';search='';}
   };
   if(local[action]){local[action]();render();return;}
@@ -414,7 +413,7 @@ root.addEventListener('click',e=>{
     }
   });
 });
-root.addEventListener('input',e=>{if(e.target.id==='search'){search=e.target.value;render();}});
+root.addEventListener('input',e=>{if(e.target.id==='search'){search=e.target.value;render(true);}});
 root.addEventListener('change',e=>{
   const t=e.target;
   if(t.id==='filter')filter=t.value;

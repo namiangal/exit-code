@@ -108,3 +108,4 @@ input:not([type=checkbox]),select{min-width:0;max-width:100%;color:#14244d;backg
 .room-progress progress { width: clamp(90px, 18vw, 180px); }
 .dashboard .stats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 110px), 1fr)); }
 .dashboard .stat { flex-direction: column; align-items: flex-start; gap: 0; text-align: left; }
+.dashboard .stat[aria-pressed="true"] { outline: 2px solid #217ac1; outline-offset: 2px; }
