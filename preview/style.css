@@ -77,8 +77,23 @@ input:not([type=checkbox]),select{min-width:0;max-width:100%;color:#14244d;backg
 }
 #review-message { display: grid; gap: 8px; margin: 0 0 14px; overflow-wrap: anywhere; }
 #review-message p { margin: 0; }
-#review-message .review-reward { width: fit-content; padding: 5px 10px; border-radius: 8px; font-weight: 800; }
-#review-message .reward-1 { background: #ffebbc; color: #783800; }
-#review-message .reward-2 { background: #d8f8e8; color: #075a41; }
-#review-message .reward-3 { background: #e9deff; color: #50268b; }
+#review-message .review-reward { color: #ae2034; font-weight: 900; }
+#review-message .review-complete { color: #4520a0; font-weight: 900; }
+#review-message .review-retry { color: #9a460f; font-weight: 900; }
+#review-message .review-student { color: #07573b; font-weight: 900; }
+#review-message .review-mission { color: #35721d; font-weight: 900; }
+#review-result.student-review {
+  border-color: #72c8ff;
+  background: linear-gradient(155deg, #f9fdff, #edf2ff 68%, #f2eaff);
+  box-shadow: 0 18px 50px #080b4a80, inset 0 0 0 3px #ffffff92;
+}
+#review-result.student-review h2 {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(110deg, #154bb0, #5428a6);
+}
+#review-result.student-review form { display: flex; justify-content: center; }
+#review-result.student-review form button { min-width: 96px; }
 #escape-art:not([hidden]) { display: block; width: 100%; height: auto; max-height: min(45vh, 45dvh); object-fit: contain; border-radius: 12px; margin: 0 0 12px; }

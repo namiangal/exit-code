@@ -97,22 +97,32 @@ function showMessage(title,messages,celebrate=false){
   const append=dialog.open&&$('#review-title').textContent===title;
   $('#review-title').textContent=title;
   dialog.classList.toggle('escape-result',celebrate);
+  dialog.classList.toggle('student-review',session?.user.role==='student'&&!celebrate);
   if(celebrate&&!$('#escape-art').hasAttribute('src'))$('#escape-art').src='assets/escape-success.png';
   $('#escape-art').hidden=!celebrate;
   if(!append)message.replaceChildren();
-  for(const text of messages){
+  for(const messageLine of messages){
     const line=document.createElement('p');
-    const reward=typeof text==='object'?text.reward:null;
-    if(reward)line.className='review-reward reward-'+reward;
-    line.textContent=reward?reward+'차 간식을 받을 수 있어요.':text;
+    const parts=Array.isArray(messageLine)?messageLine:[messageLine];
+    for(const part of parts){
+      if(typeof part==='string')line.append(part);
+      else{
+        const emphasis=document.createElement('strong');
+        emphasis.className=part.style;
+        emphasis.textContent=part.text;
+        line.append(emphasis);
+      }
+    }
     message.append(line);
   }
   if(!dialog.open)dialog.showModal();
 }
 function onSubmissions(submissions){
   if(session?.user.role!=='helper')return;
-  showMessage('새 코드 제출',submissions.map(({room,number,name,n})=>
-    room+'반 '+number+'번 '+name+' 학생이 미션 '+n+'단계 코드를 제출했습니다. 검수해 주세요.'));
+  showMessage('새 코드 제출',submissions.map(({room,number,name,n})=>[
+    {text:room+'반 '+number+'번 '+name,style:'review-student'},' 학생이 ',
+    {text:'미션 '+n+'단계',style:'review-mission'},' 코드를 제출했습니다. 검수해 주세요.'
+  ]));
   helperRefreshPending=true;
   scheduleSync();
 }
@@ -136,12 +146,14 @@ async function refresh({background=false,repaint=true,reviewCheck=false}={}){
     if(escape&&(!before||before.some(m=>m.state!=='done')))activeMission=5;
     const updates=missions.filter((m,i)=>before?.[i]&&before[i].state!==m.state&&['done','retrying'].includes(m.state));
     if(updates?.length){
-      const messages=updates.map(m=>'미션 '+m.n+' · '+(m.state==='done'?'도전 완료':states[m.state]));
+      const messages=updates.map(m=>['미션 '+m.n+' · ',{
+        text:m.state==='done'?'도전 완료':states[m.state],style:m.state==='done'?'review-complete':'review-retry'
+      }]);
       const unlocked=missions.filter((m,i)=>before[i]?.state==='locked'&&m.state==='ready');
       unlocked.forEach(m=>announcedStages.add(m.n));
       const rewards=next.views[0].snacks.filter((s,i)=>previous.views[0].snacks[i]?.state!=='eligible'&&s.state==='eligible');
       messages.push(...unlocked.map(m=>'미션 '+m.n+'에 도전할 수 있어요.'));
-      messages.push(...rewards.map(s=>({reward:s.n})));
+      messages.push(...rewards.map(s=>[{text:s.n+'차 간식',style:'review-reward'},'을 받을 수 있어요.']));
       if(escape)messages.unshift('미션 5단계를 모두 완료했어요. 탈출 성공을 축하합니다!');
       showMessage(escape?'탈출 성공!':'미션 검수 결과',messages,escape);
     }

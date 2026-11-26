@@ -76,4 +76,4 @@ window.EXIT_CODE_WATCH = (enabled, refresh) => {
   }, () => { subscribedUid = undefined; });
 };
 
-await import('./app.js?v=5');
+await import('./app.js?v=6');
