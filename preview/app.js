@@ -9,23 +9,14 @@ const glyphs=['🔑','🎲','⚡','⏱','🔐'];
 const snackLabels={waiting:'조건 미충족',eligible:'지급 가능',paid:'지급 완료'};
 const $=selector=>document.querySelector(selector);
 const html=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const hintImageCounts = [3, 3, 3, 3, 4];
-function blockHint(mission) {
-  const count = hintImageCounts[mission.n - 1] || 0;
-  return Array.from({length: count}, (_, index) => {
-    const number = index + 1;
-    return '<img src="assets/hints/mission-'+mission.n+'-'+number+'.png" alt="미션 '+mission.n+' 블록 '+number+'" loading="lazy">';
-  }).join('');
-}
-
 const dateFormat=new Intl.DateTimeFormat('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Seoul'});
 const clock=value=>value&&!Number.isNaN(Date.parse(value))?dateFormat.format(new Date(value)):'—';
 const status=s=>'<span class="pill '+html(s)+'">'+html(states[s]||snackLabels[s]||s)+'</span>';
 const option=(value,name,current)=>'<option value="'+html(value)+'" '+(String(value)===String(current)?'selected':'')+'>'+html(name)+'</option>';
 const cmd=(label,action,value='',style='',disabled=false)=>'<button type="button" data-action="'+html(action)+'" data-value="'+html(value)+'" class="'+style+'" '+(disabled?'disabled':'')+'>'+html(label)+'</button>';
 const share=record=>shareUrl(record?.url)?'<a class="table-link" target="_blank" rel="noopener noreferrer" href="'+html(record.url)+'" title="'+html(record.url)+'">'+html(record.url)+'</a>':'—';
-const table=(heads,body)=>'<div class="table-wrap"><table><thead><tr>'+heads.map(h=>'<th scope="col">'+h+'</th>').join('')+'</tr></thead><tbody>'+ (body.join('')||'<tr><td colspan="'+heads.length+'">표시할 학생이 없습니다.</td></tr>')+'</tbody></table></div>';
-const row=cells=>'<tr>'+cells.map(c=>'<td>'+c+'</td>').join('')+'</tr>';
+const table=(heads,rows,selection='')=>'<div class="table-wrap"><table role="table"><thead role="rowgroup" class="'+(selection?'with-selection':'')+'"><tr role="row">'+heads.map((heading,index)=>'<th role="columnheader" scope="col">'+(selection&&index===0?'<label class="bulk-select">'+selection+'<span>'+html(heading)+'</span></label>':html(heading))+'</th>').join('')+'</tr></thead><tbody role="rowgroup">'+(rows.map(cells=>'<tr role="row">'+cells.map((cell,index)=>'<td role="cell"><span class="cell-label" aria-hidden="true">'+html(heads[index])+'</span><div class="cell-value">'+cell+'</div></td>').join('')+'</tr>').join('')||'<tr role="row"><td role="cell" colspan="'+heads.length+'">표시할 학생이 없습니다.</td></tr>')+'</tbody></table></div>';
+const row=cells=>cells;
 const percentage=(count,total)=>total?Math.round(count/total*100):0;
 const bar=p=>'<progress max="100" value="'+p+'" aria-label="진행률 '+p+'%"></progress>';
 const byNumber=(a,b)=>a.person.number-b.person.number;
@@ -75,8 +66,11 @@ async function call(action,args={}){
   }
   let res;
   try{
+    if(window.EXIT_CODE_REQUEST)res=await window.EXIT_CODE_REQUEST(action,args);
+    else {
     const response=await fetch(api,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify({action,args,token:requestSession?.token}),credentials:'omit',signal:AbortSignal.timeout(35000),redirect:'follow'});
     res=await response.json();
+    }
   }catch{throw new Error('연결하지 못했습니다. 인터넷 연결과 웹앱 배포 주소를 확인해 주세요.');}
   if(res.code==='SESSION'){if(session===requestSession)endSession();throw new Error(res.message);}
   if(!res.ok)throw new Error(res.message||'요청을 처리하지 못했습니다.');
@@ -85,6 +79,7 @@ async function call(action,args={}){
 function endSession(){
   session=null;data=null;auto=false;chosen.clear();focusStudent='';
   clearTimeout(syncTimer);
+  window.EXIT_CODE_WATCH(false);
   sessionStorage.removeItem('exit-session');render();
 }
 async function refresh({background=false,repaint=true,reviewCheck=false}={}){
@@ -98,6 +93,7 @@ async function refresh({background=false,repaint=true,reviewCheck=false}={}){
   if(!reviewCheck)nextFullView=Date.now()+45000+Math.random()*15000;
   const previous=data;
   data=next;
+  window.EXIT_CODE_WATCH(currentSession.user.role==='student',()=>scheduleSync(0));
   if(repaint&&(!background||JSON.stringify(previous)!==JSON.stringify(next)))render(true);
   if(background&&currentSession.user.role==='student'){
     const before=previous?.views[0]?.missions;
@@ -120,7 +116,7 @@ function scheduleSync(delay){
   const pending=data?.views[0]?.missions.some(m=>m.state==='pending');
   const interval=session.user.role==='helper'?30000
     :data?.reviewCheck?(pending?2500+Math.random()*1500:45000+Math.random()*15000)
-    :pending?3000:20000;
+    :60000;
   syncTimer=setTimeout(sync,delay??interval);
 }
 async function sync(){
@@ -163,7 +159,7 @@ function student(){
   return identity(person.room+'반 '+person.number+'번 '+person.name,'<span>전체 진행률 '+done+' / 5 &nbsp; '+bar(done*20)+'</span>',false)+
     '<nav class="stages" aria-label="미션 선택">'+stageList+'</nav><div class="student-grid"><section class="panel"><div class="toolbar"><span class="pill mission-tag">미션 '+activeMission+'</span><span class="pill">'+html(m.level||states[current.state])+'</span></div><h1>'+html(m.title||'미션 준비 중')+'</h1>'+
     (locked?'<p>🔒 '+(activeMission===4?'미션 1·2·3 승인을 모두 받으면 열립니다.':activeMission===5?'미션 4를 승인받으면 열립니다.':'현재 사용할 수 없는 미션입니다.')+'</p>':ready?'<p>도전을 시작하면 문제와 힌트를 볼 수 있어요.</p>'+cmd('도전 시작','start',activeMission,'primary'):art+'<p class="narrative">'+html(m.problem)+'</p><div class="conditions"><h3>◎ 성공 조건</h3>'+html(m.conditions)+'</div><p class="muted">필요 블록 · '+html(m.blocks)+'</p><a class="button primary" target="_blank" rel="noopener noreferrer" href="https://makecode.microbit.org/">MakeCode 열기</a>')+
-    '</section><section class="panel"><h2>💡 힌트</h2>'+(locked||ready?'<p class="muted">도전 중인 미션에서 힌트를 볼 수 있어요.</p>':'<details class="hint" id="hint1"><summary>힌트 1</summary><p>'+html(m.hint1)+'</p></details><details class="hint" id="hint2" hidden><summary>힌트 2</summary><div class="hint-blocks">'+blockHint(m)+'</div></details><details class="hint" id="hint3" hidden><summary>힌트 3</summary><p class="conditions">'+html(m.hint3||m.hint2)+'</p></details>')+
+    '</section><section class="panel"><h2>💡 힌트</h2>'+(locked||ready?'<p class="muted">도전 중인 미션에서 힌트를 볼 수 있어요.</p>':'<details class="hint" id="hint1"><summary>힌트 1</summary><p>'+html(m.hint1)+'</p></details><details class="hint" id="hint2" hidden><summary>힌트 2</summary><p>'+html(m.hint2)+'</p></details>')+
     '</section><div class="stack"><section class="panel"><h2>🔗 코드 제출</h2><form class="stack submission" data-form="submit"><label>MakeCode 공유 URL<input type="url" name="url" required placeholder="https://makecode.microbit.org/…" '+(canSubmit?'':'disabled')+'></label><button class="primary" '+(canSubmit?'':'disabled')+'>제출하기</button></form>'+
     (!canSubmit?'<p class="submission-state">'+(ready?'도전 시작 후 제출할 수 있어요.':status(current.state))+'</p>':'')+
     (current.record?'<div>'+share(current.record)+'</div>':'')+'</section><section class="panel"><h2>🎁 내 간식 현황</h2><ul class="student-rewards">'+view.snacks.map(s=>'<li class="reward-card '+html(s.state)+'"><span class="reward-gift" aria-hidden="true">🎁</span><strong>'+s.n+'차 간식</strong>'+status(s.state)+'</li>').join('')+'</ul></section></div></div>';
@@ -195,10 +191,10 @@ function reviewPage(all){
   return '<div class="toolbar"><strong>미션</strong>'+['all',1,2,3,4,5].map(n=>cmd(n==='all'?'전체':'미션 '+n,'missionFilter',n,String(missionFilter)===String(n)?'active':'')).join('')+'</div>'+
     '<div class="toolbar">'+[['number','번호순'],['mission','미션순'],['review','검수순'],['recent','최근 제출순']].map(([v,t])=>cmd(t,'sort',v,sort===v?'active':'')).join('')+'</div>'+
     '<div class="toolbar"><label class="inline">상태 <select id="filter">'+option('all','전체',filter)+Object.entries(states).map(([v,t])=>option(v,t,filter)).join('')+'</select></label>'+searchBox()+'</div>'+
-    '<div class="review-list">'+table(['<input type="checkbox" id="selectAll" aria-label="표시된 대기 항목 모두 선택" '+(visible.length&&visible.every(v=>chosen.has(v.m.record.id))?'checked':'')+(!visible.length?' disabled':'')+'>','번호','이름','미션','제출한 코드 (MakeCode URL)','제출 시간','상태','검수 처리','간식 지급'],rows.map(v=>row([
+    '<div class="review-list">'+table(['선택','번호','이름','미션','MakeCode 링크','제출 시간','상태','검수 처리','간식 지급'],rows.map(v=>row([
       v.m.state==='pending'&&v.m.record?'<input type="checkbox" data-select="'+html(v.m.record.id)+'" aria-label="'+html(v.person.name)+' 제출 선택" '+(chosen.has(v.m.record.id)?'checked':'')+'>':'—',
       v.person.number,cmd(v.person.name,'detail',v.person.id),'<span class="pill mission-tag mission-'+v.m.n+'">미션 '+v.m.n+'</span>',share(v.m.record),clock(v.m.record?.time),status(v.m.state),reviewButtons(v.m),v.snacks.filter(s=>s.state==='paid').length+' / 3'
-    ])))+'</div><div class="section-title"><div class="actions">선택 '+chosen.size+'건 '+cmd('✓ 선택 승인','bulk','done','approve',!chosen.size)+cmd('↻ 선택 재도전','bulk','retrying','retry',!chosen.size)+'</div><span>'+rows.length+'명 표시</span></div>';
+    ])),'<input type="checkbox" id="selectAll" aria-label="표시된 대기 항목 모두 선택" '+(visible.length&&visible.every(v=>chosen.has(v.m.record.id))?'checked':'')+(!visible.length?' disabled':'')+'>')+'</div><div class="section-title"><div class="actions">선택 '+chosen.size+'건 '+cmd('✓ 선택 승인','bulk','done','approve',!chosen.size)+cmd('↻ 선택 재도전','bulk','retrying','retry',!chosen.size)+'</div><span>'+rows.length+'명 표시</span></div>';
 }
 function searchBox(){return '<label class="inline">학생 검색 <input id="search" type="search" placeholder="번호 또는 이름" value="'+html(search)+'"></label>';}
 function matches(v){return String(v.person.number).includes(search.trim())||v.person.name.includes(search.trim());}
@@ -228,11 +224,11 @@ function helper(){
     ()=>'<div class="toolbar">'+searchBox()+'<label class="inline">지급 상태 <select id="filter">'+option('all','전체',filter)+Object.entries(snackLabels).map(([v,t])=>option(v,t,filter)).join('')+'</select></label></div>'+
     table(['번호','이름','미션 완료','간식 지급'],all.filter(v=>matches(v)&&(filter==='all'||v.snacks.some(s=>s.state===filter))).map(v=>row([v.person.number,cmd(v.person.name,'detail',v.person.id),v.missions.filter(m=>m.state==='done').map(m=>m.n).join(' · ')||'—',snacks(v,true)]))),
     ()=>searchBox()+table(['반','번호','이름','학생 ID','진행 중','완료','최종 활동'],all.filter(matches).map(v=>row([v.person.room,v.person.number,cmd(v.person.name,'detail',v.person.id),html(v.person.id),v.missions.filter(m=>['started','pending','retrying'].includes(m.state)).map(m=>m.n).join(' · ')||'—',v.missions.filter(m=>m.state==='done').length+' / 5',latestActivity(v)]))),
-    ()=>data.missions.map(m=>'<details class="hint"><summary>미션 '+m.n+' · '+html(m.title)+' · '+(m.enabled?'사용':'미사용')+'</summary><p>'+html(m.level)+' · '+html(m.problem)+'</p><p>'+html(m.conditions)+'</p><p>힌트 1 · '+html(m.hint1)+'</p><p>힌트 2</p><div class="hint-blocks">'+blockHint(m)+'</div><p>힌트 3 · '+html(m.hint3||m.hint2)+'</p><p>필요 블록 · '+html(m.blocks)+'</p></details>').join(''),
-    ()=>'<p>'+html(session.user.id)+' · '+session.user.room+'반</p><p>세션이 만료되면 다시 로그인해 주세요.</p><form class="stack" data-form="password"><label>현재 비밀번호<input name="old" type="password" maxlength="128" autocomplete="current-password" required></label><label>새 비밀번호<input name="password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label><button class="primary">비밀번호 변경</button></form>'
+    ()=>data.missions.map(m=>'<details class="hint"><summary>미션 '+m.n+' · '+html(m.title)+' · '+(m.enabled?'사용':'미사용')+'</summary><p>'+html(m.level)+' · '+html(m.problem)+'</p><p>'+html(m.conditions)+'</p><p>힌트 1 · '+html(m.hint1)+'</p><p>힌트 2 · '+html(m.hint2)+'</p><p>필요 블록 · '+html(m.blocks)+'</p></details>').join(''),
+    ()=>'<p>'+html(session.user.id)+' · '+(session.user.allRooms?'전체 반':session.user.room+'반')+'</p><p>세션이 만료되면 다시 로그인해 주세요.</p><form class="stack" data-form="password"><label>현재 비밀번호<input name="old" type="password" maxlength="128" autocomplete="current-password" required></label><label>새 비밀번호<input name="password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label><button class="primary">비밀번호 변경</button></form>'
   ];
   const v=all.find(x=>x.person.id===focusStudent);
-  return identity(data.user.room+'반 · '+data.user.id,'<label class="inline"><input type="checkbox" id="auto" '+(auto?'checked':'')+'>자동 갱신 (30초)</label>')+
+  return identity((data.user.allRooms?'전체 반':data.user.room+'반')+' · '+data.user.id,'<label class="inline"><input type="checkbox" id="auto" '+(auto?'checked':'')+'>자동 갱신 (30초)</label>')+
     '<div class="dashboard"><nav class="sidebar" aria-label="도우미 메뉴"><h2>코딩 도우미</h2>'+menus.map((n,i)=>canOpenHelperPage(data.user,i)?cmd(icons[i]+' '+n,'menu',i,page===i?'active':''):'').join('')+'</nav><section class="panel"><div class="section-title"><h2>'+menus[page]+'</h2></div><div class="stats">'+stats+'</div>'+pages[page]()+'</section></div>'+
     (v?'<dialog id="student-detail"><div class="section-title"><h2>'+v.person.room+'반 '+v.person.number+'번 '+html(v.person.name)+'</h2>'+cmd('닫기','close')+'</div>'+
     table(['미션','상태','시작 시간','제출 시간','공유 링크','검수'],v.missions.map(m=>row([m.n,status(m.state),clock(m.started),clock(m.record?.time),share(m.record),reviewButtons(m)])))+
@@ -244,10 +240,9 @@ function render(preserve=false){
   const previous=$('#search');
   const hadFocus=previous&&document.activeElement===previous;
   const cursor=hadFocus?previous.selectionStart:null;
-  const hints = [1, 2, 3].map(n => {
-    const hint = preserve && $('#hint'+n);
-    return {open: Boolean(hint?.open), visible: Boolean(hint && !hint.hidden)};
-  });
+  const opened=preserve&&$('#hint1')?.open;
+  const second=preserve&&$('#hint2')?.open;
+  const unlocked=preserve&&$('#hint2')?.hidden===false;
   const url=preserve&&$('.submission input');
   const urlWasFocused=url&&document.activeElement===url;
   const stage=preserve&&document.activeElement?.closest('.stage');
@@ -261,16 +256,9 @@ function render(preserve=false){
     if(urlWasFocused)nextUrl.focus({preventScroll:true});
   }
   if(stage)root.querySelector('.stage[data-value="'+stage.dataset.value+'"]')?.focus({preventScroll:true});
-  hints.forEach(({open, visible}, index) => {
-    const hint = $('#hint'+(index+1));
-    if (!hint) return;
-    hint.hidden = index > 0 && !visible;
-    hint.open = open;
-    hint.addEventListener('toggle', () => {
-      const next = $('#hint'+(index+2));
-      if (hint.open && next) next.hidden = false;
-    });
-  });
+  if($('#hint1'))$('#hint1').open=Boolean(opened);
+  if($('#hint2')){$('#hint2').hidden=!unlocked;$('#hint2').open=Boolean(second);}
+  $('#hint1')?.addEventListener('toggle',e=>{if(e.target.open&&$('#hint2'))$('#hint2').hidden=false;});
   const dialog=$('#student-detail');
   if(dialog){dialog.showModal();dialog.addEventListener('cancel',()=>{focusStudent='';});}
 }
