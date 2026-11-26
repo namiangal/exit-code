@@ -63,3 +63,4 @@ input:not([type=checkbox]),select{min-width:0;max-width:100%;color:#14244d;backg
   .student-view .student-grid, .student-view .student-grid > .stack { grid-template-columns: minmax(0, 1fr); }
   input:not([type=checkbox]), select { font-size: 16px; }
 }
+#escape-art { width: min(100%, 640px); height: auto; border-radius: 12px; margin: 0 0 12px; }

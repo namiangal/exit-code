@@ -104,3 +104,19 @@
 @media (max-width: 620px) {
   .student-view .stages { padding: 7px 4px; gap: 3px; }
 }
+.student-view .stage.complete {
+  background: linear-gradient(145deg,#ffebe9,#ffc5bf);
+  border-color: #bd333b;
+  color: #741722;
+}
+.student-view .stage.complete .pill { background: #a52132; color: #fff; }
+.student-view .stage.complete.selected { outline-color: #ff9ea3; }
+.student-view .stage.newly-unlocked { outline: 3px solid #ffcf52; animation: mission-unlocked 1.2s ease-in-out 5; }
+@keyframes mission-unlocked {
+  50% { outline-color: transparent; box-shadow: 0 0 0 5px #ffcf52a0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-view .stage.newly-unlocked { animation: none; }
+}
+.hint-blocks { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .5rem; padding: .5rem 0; }
+.hint-blocks img { display: block; max-width: 100%; height: auto; }

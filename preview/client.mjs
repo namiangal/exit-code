@@ -1,7 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js';
 import { browserSessionPersistence, getAuth, setPersistence, signInWithCustomToken, signOut }
   from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js';
-import { doc, getFirestore, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js';
+import { collection, doc, getFirestore, limit, onSnapshot, orderBy, query } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js';
 
 const firebase = initializeApp(window.EXIT_CODE_FIREBASE);
 const auth = getAuth(firebase);
@@ -9,6 +9,35 @@ const db = getFirestore(firebase);
 const authReady = setPersistence(auth, browserSessionPersistence).then(() => auth.authStateReady());
 let unsubscribe;
 let subscribedUid;
+let helperUid;
+let stopHelper = [];
+
+window.EXIT_CODE_WATCH_SUBMISSIONS = (user, notify) => {
+  const uid = user?.role === 'helper' ? auth.currentUser?.uid : undefined;
+  if (uid === helperUid) return;
+  stopHelper.forEach(stop => stop());
+  stopHelper = [];
+  helperUid = uid;
+  if (!uid) return;
+  const rooms = user.allRooms ? [1, 2, 3, 4, 5] : [user.room];
+  stopHelper = rooms.map(room => {
+    let initialized = false;
+    const submissions = query(collection(db, 'helperRooms', String(room), 'submissions'),
+      orderBy('submittedAt', 'desc'), limit(30));
+    return onSnapshot(submissions, { includeMetadataChanges: true }, snapshot => {
+      if (snapshot.metadata.fromCache) return;
+      if (initialized) {
+        const added = snapshot.docChanges().filter(change => change.type === 'added');
+        if (added.length) notify(added.map(change => change.doc.data()));
+      }
+      initialized = true;
+    }, () => {
+      stopHelper.forEach(stop => stop());
+      helperUid = undefined;
+      stopHelper = [];
+    });
+  });
+};
 
 window.EXIT_CODE_REQUEST = async (action, args) => {
   await authReady;
@@ -47,4 +76,4 @@ window.EXIT_CODE_WATCH = (enabled, refresh) => {
   }, () => { subscribedUid = undefined; });
 };
 
-await import('./app.js?v=3');
+await import('./app.js?v=4');
