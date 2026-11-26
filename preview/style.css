@@ -21,3 +21,6 @@ input:not([type=checkbox]),select{min-width:0;max-width:100%;color:#14244d;backg
 .review-list .pill.pending { background: #eee8f7; color: #54317d; }
 .review-list .pill.retrying { background: #faebdf; color: #803717; }
 .review-list .pill.done { background: #e4f2e8; color: #20573a; }
+
+.hint-blocks{display:flex;flex-wrap:wrap;align-items:flex-start;gap:.5rem;padding:.5rem 0}
+.hint-blocks img{display:block;max-width:100%;height:auto}

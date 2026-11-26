@@ -1,12 +1,12 @@
 const states = {locked:'잠김',ready:'도전 전',started:'도전 중',pending:'검수 대기',retrying:'재도전 요청',done:'승인 완료'};
 const stages = [
-  ['비밀번호 입력하기','기초','버튼으로 숫자를 바꾸고 비밀번호를 확인하세요.','숫자 5에서 확인하면 성공을 표시하세요.','입력한 숫자를 변수에 저장하세요.','확인 버튼을 누르면 입력값이 5인지 비교하세요.','변수, 버튼, 조건문'],
-  ['행운의 암호 찾기','기초','흔들어 1부터 6 사이의 행운의 숫자를 뽑으세요.','뽑은 숫자를 표시하고 3이면 성공을 표시하세요.','흔들기 이벤트를 사용하세요.','무작위로 뽑은 숫자를 변수에 담아 비교하세요.','흔들기, 무작위 수, 조건문'],
-  ['탈출 기회는 3번','응용','탈출 버튼을 누를 기회는 세 번입니다. 제한된 기회 안에 암호를 확인하세요.','기회는 3에서 시작합니다.\n확인할 때마다 1씩 줄어듭니다.\n기회가 0이면 추가 입력을 막습니다.\n암호가 맞으면 성공을 표시합니다.','남은 기회를 저장할 변수를 만들고 3으로 시작하세요.','확인 버튼을 눌렀을 때 남은 기회가 0보다 큰지 먼저 확인하세요.','변수, 버튼, 조건문'],
-  ['5초 안에 탈출하기','응용','시작 버튼을 누른 뒤 5초 이내에 탈출 버튼을 누르세요.','5초 이내에는 성공, 시간이 지나면 실패를 표시하세요.','시작한 시각을 변수에 저장하세요.','현재 실행 시간에서 시작 시각을 빼 보세요.','버튼, 실행 시간, 조건문'],
-  ['비밀 버튼 순서 찾기','도전','비밀 순서 A → B → A를 감지하는 장치를 만드세요.','올바른 순서면 성공을 표시하고, 틀리면 첫 단계로 돌아가세요.','지금 몇 번째 입력을 기다리는지 변수로 기록하세요.','기다리는 버튼이 맞으면 단계 값을 하나 올려 보세요.','버튼, 변수, 조건문']
+  ["비밀 출입증 만들기","기초","비밀기지에 들어가기 위한 출입증을 만들어 보세요.","- A 버튼을 누르면 체크 표시와 함께 성공 소리가 난다.\n- B 버튼을 누르면 X 표시와 함께 실패 소리가 난다.\n- A+B 버튼을 누르면 LED 화면이 지워진다.","버튼을 눌렀을 때 실행되는 블록을 사용해 보세요.","A, B, A+B 버튼 이벤트를 따로 만들어요.\nA에는 ✓와 성공음(전원 켜는 멜로디), B에는 X와 실패음(전원 끄는 멜로디),\nA+B에는 화면 지우기를 넣어요.","버튼 이벤트, 아이콘 출력, 멜로디, 화면 지우기"],
+  ["행운의 주사위","기초","어떤 숫자가 나올지 알 수 없는 행운의 전자 주사위를 만들어 보세요!","- 마이크로비트를 흔들면 1~6 사이의 숫자가 무작위로 나타난다.\n- 다시 흔들면 무작위 숫자를 새로 생성한다.\n- A 버튼을 누르면 LED 화면이 지워진다.","마이크로비트를 흔들었을 때 실행되는 블록을 찾아보세요.","흔들기 이벤트 안에서 숫자 출력에 ‘1~6’ 무작위 수(랜덤)를 넣어요. A 버튼 이벤트에는 화면 지우기를 넣어요.","흔들기 이벤트, 무작위 수, 숫자 출력, 화면 지우기"],
+  ["에너지 충전하기","기초","비밀기지에서 탈출하려면 에너지가 필요합니다. 버튼을 눌러 에너지를 충전하는 장치를 만들어 보세요!","- 시작할 때 에너지는 0이다.\n- A 버튼을 누를 때마다 에너지가 1씩 증가한다.\n- 현재 에너지 숫자를 LED에 표시한다.\n- B 버튼을 누르면 에너지가 0으로 초기화되고 0이 표시된다.","에너지의 양을 기억할 수 있도록 '에너지'라는 변수를 만들어 보세요.","‘에너지’를 0으로 시작해요.\nA를 누르면 1을 더해 표시하고, B를 누르면 0으로 바꿔 표시해요.","변수, 버튼 이벤트, 숫자 출력"],
+  ["마법의 8번 공","응용","나의 운명을 알려주는 신비한 마법의 8번 공을 만들어 보세요. 마이크로비트를 흔들면 어떤 결과가 나타날까요?","- 마이크로비트를 흔들면 1~3 사이의 무작위 숫자를 생성한다.\n- 숫자가 1이면 체크 표시가 나타난다.\n- 숫자가 2이면 X 표시가 나타난다.\n- 숫자가 3이면 지루한 표정이 나타난다.","흔들었을 때 1~3 사이의 무작위 숫자를 만들어 변수에 저장하세요.","뽑은 1~3을 ‘운명’에 저장해요.1이면 ✓, 2이면 X, 그 외에는 지루한 표정을 표시해요.","흔들기 이벤트, 무작위 수, 변수, 조건문, 아이콘 출력"],
+  ["비밀 버튼 순서 찾기","응용","비밀기지의 마지막 잠금장치가 나타났습니다. 정해진 버튼 순서를 정확하게 입력하여 탈출에 성공하세요!","- A → B → A 순서로 버튼을 누른다.\n- 정확한 순서로 입력하면 체크 표시와 탈출 성공 효과음이 나온다.\n- 잘못된 순서로 입력하면 X 표시가 나오고 처음부터 다시 시작한다.\n- A+B 버튼을 누르면 초기화되고 화면이 지워진다.","버튼을 몇 단계까지 정확하게 눌렀는지 기억할 '단계' 변수를 만들어 보세요.","올바른 버튼을 누르면 다음 단계로 변경하세요.\n잘못된 버튼을 누르면 X를 표시하고 단계를 0으로 설정하세요.","버튼 이벤트, 변수, 조건문, 아이콘 출력, 멜로디, 화면 지우기"]
 ];
-const defaultMissions = () => stages.map(([title,level,problem,conditions,hint1,hint2,blocks],i)=>({n:i+1,title,level,problem,conditions,hint1,hint2,blocks,image:'',enabled:true}));
+const defaultMissions = () => stages.map(([title,level,problem,conditions,hint1,hint3,blocks],i)=>({n:i+1,title,level,problem,conditions,hint1,hint2:hint3,hint3,blocks,image:'',enabled:true}));
 const shareUrl = value => {
   const url = String(value || '').trim();
   return /^https:\/\/makecode\.microbit\.org\/(?:_[A-Za-z0-9]{6,32}|(?:S)?\d{5}(?:-\d{5}){3})\/?$/.test(url) ? url : '';
@@ -165,7 +165,8 @@ function snapshot(ss,students,helper,columnsBySheet){
   const submissions=raw('미션제출').filter(r=>r.제출ID&&[1,2,3,4,5].includes(Number(r.미션번호))).map(r=>({id:String(r.제출ID),student:String(r.학생ID),n:Number(r.미션번호),url:shareUrl(r['MakeCode URL']),time:date(r.제출시간),reviewed:date(r.검수시간),actor:String(r.검수자),state:legacy[String(r.검수상태).trim()]||'pending',previous:String(r.이전제출ID),...(helper?{row:r._row,history:reviewHistory(r.검수이력JSON)}:{})}));
   const progress=raw('미션진행').map(r=>({student:String(r.학생ID),n:Number(r.미션번호),time:date(r.시작시간)}));
   const snacks=raw('차수간식이력').map(r=>({student:String(r.학생ID),n:Number(r.지급차수),state:r.지급상태,time:date(r.처리시간)}));
-  const missions=rows(ss,'미션정보').filter(r=>[1,2,3,4,5].includes(Number(r.미션번호))).map(r=>({n:Number(r.미션번호),title:r.미션제목,level:r.난이도,problem:r.문제,conditions:r.성공조건,hint1:r.힌트1,hint2:r.힌트2,blocks:r.필요블록,image:r.이미지,enabled:r.사용여부===true||['true','사용','y','1'].includes(String(r.사용여부).toLowerCase())}));
+  const lessonMissions=defaultMissions();
+  const missions=rows(ss,'미션정보').filter(r=>[1,2,3,4,5].includes(Number(r.미션번호))).map(r=>({n:Number(r.미션번호),...lessonMissions[Number(r.미션번호)-1],image:r.이미지,enabled:r.사용여부===true||['true','사용','y','1'].includes(String(r.사용여부).toLowerCase())}));
   return {students,submissions,progress,snacks,missions};
 }
 function passwordHash(password,salt){
@@ -267,6 +268,25 @@ function authenticate(ss,cache,a){
   cache.put('sess:'+token,JSON.stringify({user,version}),14400);
   return {token,user};
 }
+function doGet(){
+  return ContentService.createTextOutput(
+    'EXIT CODE API에 연결되었습니다. 학생·도우미 화면은 https://namiangal.github.io/exit-code-test/preview/ 에서 열어 주세요.'
+  );
+}
+function reviewCacheKey(student){
+  const digest=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,student,Utilities.Charset.UTF_8);
+  return 'review:'+Utilities.base64EncodeWebSafe(digest);
+}
+function publishReviewViews(cache,db,students){
+  const entries={};
+  for(const student of students){
+    const submissions=db.submissions.filter(r=>r.student===student.id).map(({history,row,...record})=>record);
+    const view=operate({...db,submissions},{id:student.id,role:'student'},'view',{}, {now:''});
+    const value=JSON.stringify(view);
+    if(value.length<30000)entries[reviewCacheKey(student.id)]=value;
+  }
+  if(Object.keys(entries).length)cache.putAll(entries,120);
+}
 function doPost(e){
   const response=data=>ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
   if(!e?.postData?.contents || e.postData.contents.length>30000)return response({ok:false,message:'요청 형식을 확인해 주세요.'});
@@ -278,6 +298,22 @@ function doPost(e){
     const session=action==='login'?null:sessionUser(cache,token);
     if(action!=='login'&&!session)return response({ok:false,code:'SESSION',message:'세션이 종료되었습니다. 다시 로그인해 주세요.'});
     if(action==='logout'){cache.remove('sess:'+token);return response({ok:true,data:{}});}
+    if(action==='reviewCheck'){
+      const user=session.user;
+      if(user.role!=='student')return response({ok:false,message:'학생만 확인할 수 있습니다.'});
+      const cached=cache.get(reviewCacheKey(user.id));
+      if(!cached)return response({ok:true,data:{}});
+      const view=JSON.parse(cached);
+      const ids=Array.isArray(args.ids)?args.ids.slice(0,5):[];
+      if(!view.views[0]?.missions.some(m=>ids.includes(m.record?.id)&&['done','retrying'].includes(m.state)))
+        return response({ok:true,data:{}});
+      const person=rosterFor(spreadsheet(),user.room,user.id)[0];
+      if(!person)return response({ok:false,code:'SESSION',message:'계정 정보가 변경되었습니다. 다시 로그인해 주세요.'});
+      view.user=user;
+      view.views[0].person=person;
+      view.reviewCheck=true;
+      return response({ok:true,data:{view}});
+    }
     const ss=spreadsheet();
     if(action!=='view'){
       lock=LockService.getScriptLock();
@@ -301,23 +337,35 @@ function doPost(e){
     }
     const columnsBySheet=new Map();
     const db=snapshot(ss,students,helper,columnsBySheet);
+    const reviewedStudents=new Set();
     const now=new Date().toISOString();
     const runtime={now,id:()=>Utilities.getUuid(),
       add(type,r){
+        cache.remove(reviewCacheKey(r.student));
         if(type==='progress')append(ss,'미션진행',[r.student,r.n,r.time,r.time,'도전 중'],columnsBySheet);
         if(type==='submissions')append(ss,'미션제출',[r.id,r.student,r.n,r.url,r.time,r.state,'','',r.time,user.id,r.previous],columnsBySheet);
         if(type==='snacks')append(ss,'차수간식이력',[r.student,r.n,r.state,r.time,r.actor],columnsBySheet);
         db[type].push(r);
       },
-      review:(r,state,actor,time)=>reviewRow(ss,r,state,actor,time,columnsBySheet)
+      review(r,state,actor,time){
+        if(!reviewedStudents.has(r.student))cache.remove(reviewCacheKey(r.student));
+        reviewRow(ss,r,state,actor,time,columnsBySheet);
+        reviewedStudents.add(r.student);
+      }
     };
     const data=operate(db,user,action,args,runtime);
     if(locked){
       SpreadsheetApp.flush();
+      if(reviewedStudents.size){
+        try{publishReviewViews(cache,db,students.filter(p=>reviewedStudents.has(p.id)));}
+        catch(error){console.warn('Review notification cache unavailable');}
+      }
       lock.releaseLock();
       locked=false;
       if(args.includeView===true)data.view=operate(db,user,'view',{},runtime);
     }
+    const view=action==='view'?data:data.view;
+    if(view&&!helper)view.reviewCheck=true;
     return response({ok:true,data});
   } catch(error){
     const msg=String(error.message||'');

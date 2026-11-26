@@ -9,6 +9,15 @@ const glyphs=['🔑','🎲','⚡','⏱','🔐'];
 const snackLabels={waiting:'조건 미충족',eligible:'지급 가능',paid:'지급 완료'};
 const $=selector=>document.querySelector(selector);
 const html=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hintImageCounts = [3, 3, 3, 3, 4];
+function blockHint(mission) {
+  const count = hintImageCounts[mission.n - 1] || 0;
+  return Array.from({length: count}, (_, index) => {
+    const number = index + 1;
+    return '<img src="assets/hints/mission-'+mission.n+'-'+number+'.png" alt="미션 '+mission.n+' 블록 '+number+'" loading="lazy">';
+  }).join('');
+}
+
 const dateFormat=new Intl.DateTimeFormat('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Seoul'});
 const clock=value=>value&&!Number.isNaN(Date.parse(value))?dateFormat.format(new Date(value)):'—';
 const status=s=>'<span class="pill '+html(s)+'">'+html(states[s]||snackLabels[s]||s)+'</span>';
@@ -23,6 +32,7 @@ const byNumber=(a,b)=>a.person.number-b.person.number;
 let role='student',session=JSON.parse(sessionStorage.getItem('exit-session')||'null');
 let page=0, activeMission=3, focusStudent='', data, busy=false, refreshVersion=0, auto=false;
 let syncTimer, syncing=false;
+let nextFullView=0;
 let search='',filter='all',sort='number',missionFilter='all';
 const chosen=new Set();
 let noticeTimer;
@@ -77,26 +87,41 @@ function endSession(){
   clearTimeout(syncTimer);
   sessionStorage.removeItem('exit-session');render();
 }
-async function refresh({background=false,repaint=true}={}){
+async function refresh({background=false,repaint=true,reviewCheck=false}={}){
   if(!session)return;
   const version=++refreshVersion;
   const currentSession=session;
-  const next=await call('view');
+  const pendingIds=data?.views[0]?.missions.filter(m=>m.state==='pending'&&m.record).map(m=>m.record.id);
+  const next=reviewCheck?(await call('reviewCheck',{ids:pendingIds})).view:await call('view');
   if(session!==currentSession||version!==refreshVersion||(background&&busy))return;
+  if(!next)return;
+  if(!reviewCheck)nextFullView=Date.now()+45000+Math.random()*15000;
   const previous=data;
   data=next;
   if(repaint&&(!background||JSON.stringify(previous)!==JSON.stringify(next)))render(true);
   if(background&&currentSession.user.role==='student'){
     const before=previous?.views[0]?.missions;
     const updates=next.views[0]?.missions.filter((m,i)=>before?.[i]&&before[i].state!==m.state&&['done','retrying'].includes(m.state));
-    if(updates?.length)notify(updates.map(m=>'미션 '+m.n+' · '+states[m.state]).join('\n'));
+    if(updates?.length){
+      const messages=updates.map(m=>'미션 '+m.n+' · '+states[m.state]);
+      const unlocked=next.views[0].missions.filter((m,i)=>before[i]?.state==='locked'&&m.state==='ready');
+      const rewards=next.views[0].snacks.filter((s,i)=>previous.views[0].snacks[i]?.state!=='eligible'&&s.state==='eligible');
+      messages.push(...unlocked.map(m=>'미션 '+m.n+'에 도전할 수 있어요.'));
+      messages.push(...rewards.map(s=>s.n+'차 간식을 받을 수 있어요.'));
+      $('#review-message').textContent=messages.join('\n');
+      const dialog=$('#review-result');
+      if(!dialog.open)dialog.showModal();
+    }
   }
 }
 function scheduleSync(delay){
   clearTimeout(syncTimer);
   if(document.hidden||!session||(session.user.role==='helper'&&!auto))return;
   const pending=data?.views[0]?.missions.some(m=>m.state==='pending');
-  syncTimer=setTimeout(sync,delay??(session.user.role==='helper'?30000:pending?3000:20000));
+  const interval=session.user.role==='helper'?30000
+    :data?.reviewCheck?(pending?2500+Math.random()*1500:45000+Math.random()*15000)
+    :pending?3000:20000;
+  syncTimer=setTimeout(sync,delay??interval);
 }
 async function sync(){
   if(document.hidden||!session)return;
@@ -104,7 +129,9 @@ async function sync(){
   if(session.user.role==='helper'&&(!auto||focusStudent||root.querySelector('form :focus'))){scheduleSync();return;}
   syncing=true;
   let retry;
-  try{await refresh({background:true});}
+  const reviewCheck=Boolean(data?.reviewCheck&&Date.now()<nextFullView&&
+    data.views[0]?.missions.some(m=>m.state==='pending'&&m.record));
+  try{await refresh({background:true,reviewCheck});}
   catch(error){if(!session)notify(error.message);retry=30000;}
   finally{syncing=false;scheduleSync(retry);}
 }
@@ -136,7 +163,7 @@ function student(){
   return identity(person.room+'반 '+person.number+'번 '+person.name,'<span>전체 진행률 '+done+' / 5 &nbsp; '+bar(done*20)+'</span>',false)+
     '<nav class="stages" aria-label="미션 선택">'+stageList+'</nav><div class="student-grid"><section class="panel"><div class="toolbar"><span class="pill mission-tag">미션 '+activeMission+'</span><span class="pill">'+html(m.level||states[current.state])+'</span></div><h1>'+html(m.title||'미션 준비 중')+'</h1>'+
     (locked?'<p>🔒 '+(activeMission===4?'미션 1·2·3 승인을 모두 받으면 열립니다.':activeMission===5?'미션 4를 승인받으면 열립니다.':'현재 사용할 수 없는 미션입니다.')+'</p>':ready?'<p>도전을 시작하면 문제와 힌트를 볼 수 있어요.</p>'+cmd('도전 시작','start',activeMission,'primary'):art+'<p class="narrative">'+html(m.problem)+'</p><div class="conditions"><h3>◎ 성공 조건</h3>'+html(m.conditions)+'</div><p class="muted">필요 블록 · '+html(m.blocks)+'</p><a class="button primary" target="_blank" rel="noopener noreferrer" href="https://makecode.microbit.org/">MakeCode 열기</a>')+
-    '</section><section class="panel"><h2>💡 힌트</h2>'+(locked||ready?'<p class="muted">도전 중인 미션에서 힌트를 볼 수 있어요.</p>':'<details class="hint" id="hint1"><summary>힌트 1</summary><p>'+html(m.hint1)+'</p></details><details class="hint" id="hint2" hidden><summary>힌트 2</summary><p>'+html(m.hint2)+'</p></details>')+
+    '</section><section class="panel"><h2>💡 힌트</h2>'+(locked||ready?'<p class="muted">도전 중인 미션에서 힌트를 볼 수 있어요.</p>':'<details class="hint" id="hint1"><summary>힌트 1</summary><p>'+html(m.hint1)+'</p></details><details class="hint" id="hint2" hidden><summary>힌트 2</summary><div class="hint-blocks">'+blockHint(m)+'</div></details><details class="hint" id="hint3" hidden><summary>힌트 3</summary><p class="conditions">'+html(m.hint3||m.hint2)+'</p></details>')+
     '</section><div class="stack"><section class="panel"><h2>🔗 코드 제출</h2><form class="stack submission" data-form="submit"><label>MakeCode 공유 URL<input type="url" name="url" required placeholder="https://makecode.microbit.org/…" '+(canSubmit?'':'disabled')+'></label><button class="primary" '+(canSubmit?'':'disabled')+'>제출하기</button></form>'+
     (!canSubmit?'<p class="submission-state">'+(ready?'도전 시작 후 제출할 수 있어요.':status(current.state))+'</p>':'')+
     (current.record?'<div>'+share(current.record)+'</div>':'')+'</section><section class="panel"><h2>🎁 내 간식 현황</h2><ul class="student-rewards">'+view.snacks.map(s=>'<li class="reward-card '+html(s.state)+'"><span class="reward-gift" aria-hidden="true">🎁</span><strong>'+s.n+'차 간식</strong>'+status(s.state)+'</li>').join('')+'</ul></section></div></div>';
@@ -201,7 +228,7 @@ function helper(){
     ()=>'<div class="toolbar">'+searchBox()+'<label class="inline">지급 상태 <select id="filter">'+option('all','전체',filter)+Object.entries(snackLabels).map(([v,t])=>option(v,t,filter)).join('')+'</select></label></div>'+
     table(['번호','이름','미션 완료','간식 지급'],all.filter(v=>matches(v)&&(filter==='all'||v.snacks.some(s=>s.state===filter))).map(v=>row([v.person.number,cmd(v.person.name,'detail',v.person.id),v.missions.filter(m=>m.state==='done').map(m=>m.n).join(' · ')||'—',snacks(v,true)]))),
     ()=>searchBox()+table(['반','번호','이름','학생 ID','진행 중','완료','최종 활동'],all.filter(matches).map(v=>row([v.person.room,v.person.number,cmd(v.person.name,'detail',v.person.id),html(v.person.id),v.missions.filter(m=>['started','pending','retrying'].includes(m.state)).map(m=>m.n).join(' · ')||'—',v.missions.filter(m=>m.state==='done').length+' / 5',latestActivity(v)]))),
-    ()=>data.missions.map(m=>'<details class="hint"><summary>미션 '+m.n+' · '+html(m.title)+' · '+(m.enabled?'사용':'미사용')+'</summary><p>'+html(m.level)+' · '+html(m.problem)+'</p><p>'+html(m.conditions)+'</p><p>힌트 1 · '+html(m.hint1)+'</p><p>힌트 2 · '+html(m.hint2)+'</p><p>필요 블록 · '+html(m.blocks)+'</p></details>').join(''),
+    ()=>data.missions.map(m=>'<details class="hint"><summary>미션 '+m.n+' · '+html(m.title)+' · '+(m.enabled?'사용':'미사용')+'</summary><p>'+html(m.level)+' · '+html(m.problem)+'</p><p>'+html(m.conditions)+'</p><p>힌트 1 · '+html(m.hint1)+'</p><p>힌트 2</p><div class="hint-blocks">'+blockHint(m)+'</div><p>힌트 3 · '+html(m.hint3||m.hint2)+'</p><p>필요 블록 · '+html(m.blocks)+'</p></details>').join(''),
     ()=>'<p>'+html(session.user.id)+' · '+session.user.room+'반</p><p>세션이 만료되면 다시 로그인해 주세요.</p><form class="stack" data-form="password"><label>현재 비밀번호<input name="old" type="password" maxlength="128" autocomplete="current-password" required></label><label>새 비밀번호<input name="password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label><button class="primary">비밀번호 변경</button></form>'
   ];
   const v=all.find(x=>x.person.id===focusStudent);
@@ -217,9 +244,10 @@ function render(preserve=false){
   const previous=$('#search');
   const hadFocus=previous&&document.activeElement===previous;
   const cursor=hadFocus?previous.selectionStart:null;
-  const opened=preserve&&$('#hint1')?.open;
-  const second=preserve&&$('#hint2')?.open;
-  const unlocked=preserve&&$('#hint2')?.hidden===false;
+  const hints = [1, 2, 3].map(n => {
+    const hint = preserve && $('#hint'+n);
+    return {open: Boolean(hint?.open), visible: Boolean(hint && !hint.hidden)};
+  });
   const url=preserve&&$('.submission input');
   const urlWasFocused=url&&document.activeElement===url;
   const stage=preserve&&document.activeElement?.closest('.stage');
@@ -233,9 +261,16 @@ function render(preserve=false){
     if(urlWasFocused)nextUrl.focus({preventScroll:true});
   }
   if(stage)root.querySelector('.stage[data-value="'+stage.dataset.value+'"]')?.focus({preventScroll:true});
-  if($('#hint1'))$('#hint1').open=Boolean(opened);
-  if($('#hint2')){$('#hint2').hidden=!unlocked;$('#hint2').open=Boolean(second);}
-  $('#hint1')?.addEventListener('toggle',e=>{if(e.target.open&&$('#hint2'))$('#hint2').hidden=false;});
+  hints.forEach(({open, visible}, index) => {
+    const hint = $('#hint'+(index+1));
+    if (!hint) return;
+    hint.hidden = index > 0 && !visible;
+    hint.open = open;
+    hint.addEventListener('toggle', () => {
+      const next = $('#hint'+(index+2));
+      if (hint.open && next) next.hidden = false;
+    });
+  });
   const dialog=$('#student-detail');
   if(dialog){dialog.showModal();dialog.addEventListener('cancel',()=>{focusStudent='';});}
 }
@@ -254,6 +289,7 @@ async function save(action,args){
   if(result.view){
     ++refreshVersion;
     data=result.view;
+    nextFullView=Date.now()+45000+Math.random()*15000;
     render(true);
   }else{
     try{await refresh();}
@@ -331,8 +367,8 @@ root.addEventListener('submit',e=>{
     }finally{button.disabled=false;}
   });
 });
-document.addEventListener('visibilitychange',()=>scheduleSync(0));
-window.addEventListener('online',()=>scheduleSync(0));
+document.addEventListener('visibilitychange',()=>scheduleSync(data?.reviewCheck?Math.random()*1800:0));
+window.addEventListener('online',()=>scheduleSync(data?.reviewCheck?Math.random()*1800:0));
 if(demo)window.addEventListener('storage',e=>{if(e.key==='exit-demo'&&session?.user.role==='student')scheduleSync(0);});
 render();
 if(session)task(()=>refresh());
