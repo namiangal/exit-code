@@ -29,6 +29,7 @@ let syncTimer, syncing=false;
 let helperRefreshPending=false;
 const unlockedStages=new Set();
 const announcedStages=new Set();
+let retryStageAfterNotice;
 let nextFullView=0;
 let search='',filter='all',sort='number',missionFilter='all';
 const chosen=new Set();
@@ -84,7 +85,7 @@ async function call(action,args={}){
 }
 function endSession(){
   session=null;data=null;auto=false;chosen.clear();focusStudent='';
-  helperRefreshPending=false;unlockedStages.clear();announcedStages.clear();
+  helperRefreshPending=false;unlockedStages.clear();announcedStages.clear();retryStageAfterNotice=undefined;
   clearTimeout(syncTimer);
   window.EXIT_CODE_WATCH(false);
   window.EXIT_CODE_WATCH_SUBMISSIONS(null);
@@ -143,9 +144,12 @@ async function refresh({background=false,repaint=true,reviewCheck=false}={}){
     const before=previous?.views[0]?.missions;
     const missions=next.views[0]?.missions||[];
     const escape=missions.length===5&&missions.every(m=>m.state==='done');
-    if(escape&&(!before||before.some(m=>m.state!=='done')))activeMission=5;
+    if(!before)activeMission=demo?3:escape?5:(missions.find(m=>m.state==='retrying')?.n||missions.find(m=>m.state==='started')?.n||1);
+    else if(escape&&before.some(m=>m.state!=='done'))activeMission=5;
     const updates=missions.filter((m,i)=>before?.[i]&&before[i].state!==m.state&&['done','retrying'].includes(m.state));
     if(updates?.length){
+      const retry=updates.find(m=>m.state==='retrying'&&m.n===activeMission)||updates.find(m=>m.state==='retrying');
+      if(retry)retryStageAfterNotice=retry.n;
       const messages=updates.map(m=>['미션 '+m.n+' · ',{
         text:m.state==='done'?'도전 완료':states[m.state],style:m.state==='done'?'review-complete':'review-retry'
       }]);
@@ -161,10 +165,14 @@ async function refresh({background=false,repaint=true,reviewCheck=false}={}){
   if(repaint&&(!background||JSON.stringify(previous)!==JSON.stringify(next)))render(true);
 }
 $('#review-result').addEventListener('close',()=>{
-  if(!announcedStages.size)return;
+  const retryStage=retryStageAfterNotice;
+  retryStageAfterNotice=undefined;
+  if(!announcedStages.size&&!retryStage)return;
   announcedStages.forEach(n=>unlockedStages.add(n));
   announcedStages.clear();
-  render(true);
+  const switching=retryStage&&retryStage!==activeMission&&data?.views[0]?.missions[retryStage-1]?.state==='retrying';
+  if(switching)activeMission=retryStage;
+  render(!switching);
 });
 function scheduleSync(delay){
   clearTimeout(syncTimer);
@@ -411,8 +419,6 @@ root.addEventListener('submit',e=>{
         page=0;search='';filter='all';sort='number';missionFilter='all';
         render();
         await refresh({repaint:false});
-        const missions=data?.views[0]?.missions;
-        activeMission=demo?3:missions?.every(m=>m.state==='done')?5:(missions?.find(m=>m.state==='started')?.n||1);
         render();
       }
       if(e.target.dataset.form==='submit')await save('submit',{n:activeMission,url:fields.url});

@@ -83,16 +83,22 @@ input:not([type=checkbox]),select{min-width:0;max-width:100%;color:#14244d;backg
 #review-message .review-student { color: #07573b; font-weight: 900; }
 #review-message .review-mission { color: #35721d; font-weight: 900; }
 #review-result.student-review {
+  padding-top: clamp(10px, 2vw, 15px);
   border-color: #72c8ff;
   background: linear-gradient(155deg, #f9fdff, #edf2ff 68%, #f2eaff);
   box-shadow: 0 18px 50px #080b4a80, inset 0 0 0 3px #ffffff92;
 }
 #review-result.student-review h2 {
-  margin-bottom: 12px;
+  margin-bottom: 20px;
   padding: 10px 14px;
   border-radius: 10px;
   color: #fff;
   background: linear-gradient(110deg, #154bb0, #5428a6);
+}
+#review-result.student-review #review-message {
+  gap: 12px;
+  margin-bottom: 24px;
+  font-size: clamp(1.08rem, 3.6vw, 1.25rem);
 }
 #review-result.student-review form { display: flex; justify-content: center; }
 #review-result.student-review form button { min-width: 96px; }
